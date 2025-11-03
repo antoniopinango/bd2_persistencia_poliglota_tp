@@ -22,12 +22,19 @@ public class AuthorizationDAO {
     
     /**
      * Obtiene los permisos efectivos de un usuario (procesos que puede ejecutar)
+     * Incluye permisos directos del usuario, de sus roles y de sus grupos
      */
     public Set<String> getUserPermissions(String userId) {
         String query = """
-            MATCH (u:User {id: $userId})-[:HAS_ROLE|MEMBER_OF]->(x)-[:CAN_EXECUTE]->(p:ProcessType) 
+            MATCH (u:User {id: $userId})
             WHERE u.status = 'activo'
-            RETURN DISTINCT p.id AS processId, p.name AS processName
+            OPTIONAL MATCH (u)-[:CAN_EXECUTE]->(p1:ProcessType)
+            OPTIONAL MATCH (u)-[:HAS_ROLE|MEMBER_OF]->(x)-[:CAN_EXECUTE]->(p2:ProcessType)
+            WITH u, collect(DISTINCT p1) + collect(DISTINCT p2) AS allProcesses
+            UNWIND allProcesses AS p
+            WITH DISTINCT p
+            WHERE p IS NOT NULL
+            RETURN p.id AS processId, p.name AS processName
             """;
         
         try (Session session = connectionManager.createSession(AccessMode.READ)) {
@@ -39,11 +46,39 @@ public class AuthorizationDAO {
                 permissions.add(record.get("processId").asString());
             }
             
-            logger.debug("Usuario {} tiene {} permisos", userId, permissions.size());
+            logger.info("Usuario {} tiene {} permisos: {}", userId, permissions.size(), permissions);
             return permissions;
             
         } catch (Exception e) {
             logger.error("Error obteniendo permisos de usuario: {}", userId, e);
+            return new HashSet<>();
+        }
+    }
+    
+    /**
+     * Obtiene los roles de un usuario
+     */
+    public Set<String> getUserRoles(String userId) {
+        String query = """
+            MATCH (u:User {id: $userId})-[:HAS_ROLE]->(r:Role)
+            WHERE u.status = 'activo'
+            RETURN DISTINCT r.name AS roleName
+            """;
+        
+        try (Session session = connectionManager.createSession(AccessMode.READ)) {
+            Result result = session.run(query, Values.parameters("userId", userId));
+            
+            Set<String> roles = new HashSet<>();
+            while (result.hasNext()) {
+                org.neo4j.driver.Record record = result.next();
+                roles.add(record.get("roleName").asString());
+            }
+            
+            logger.info("Usuario {} tiene roles: {}", userId, roles);
+            return roles;
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo roles de usuario: {}", userId, e);
             return new HashSet<>();
         }
     }

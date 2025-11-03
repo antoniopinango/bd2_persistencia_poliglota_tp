@@ -30,6 +30,7 @@ public class MongoMigrations {
         logger.info("=== Iniciando migraciones MongoDB ===");
         
         try {
+            // Agregar ID incremental (No UUID)
             createUsersCollection();
             createSessionsCollection();
             createRolesCollection();
@@ -82,7 +83,7 @@ public class MongoMigrations {
                     }
                 }
             }
-            """);
+            """); // Revisar department
         
         database.runCommand(new Document("collMod", "users")
             .append("validator", validator));
@@ -100,7 +101,10 @@ public class MongoMigrations {
             new IndexOptions().expireAfter(0L, TimeUnit.SECONDS).name("idx_sessions_ttl"));
         collection.createIndex(Indexes.compoundIndex(Indexes.ascending("userId"), Indexes.ascending("status")), 
             new IndexOptions().name("idx_sessions_user_status"));
-        
+
+        // Agregar ROLE
+        // Fechar y hora de inicio de la sesión y fecha y hora de cierre de la sesión
+
         logger.info("Colección 'sessions' creada con TTL");
     }
     
@@ -111,6 +115,7 @@ public class MongoMigrations {
         
         collection.createIndex(Indexes.ascending("name"), 
             new IndexOptions().unique(true).name("idx_roles_name"));
+        // Agregar descripcion. 
         
         logger.info("Colección 'roles' creada");
     }
@@ -139,6 +144,8 @@ public class MongoMigrations {
         logger.info("Creando colección 'processes'...");
         
         MongoCollection<Document> collection = database.getCollection("processes");
+
+        // Agregar description. 
         
         collection.createIndex(Indexes.ascending("name"), 
             new IndexOptions().unique(true).name("idx_processes_name"));
@@ -152,6 +159,9 @@ public class MongoMigrations {
         logger.info("Creando colección 'process_requests'...");
         
         MongoCollection<Document> collection = database.getCollection("process_requests");
+
+
+        // Agregar fecha de solicitud y estado debe ser un booleano. (true: completado, false: cancelado)
         
         collection.createIndex(Indexes.compoundIndex(Indexes.ascending("userId"), Indexes.descending("requestedAt")), 
             new IndexOptions().name("idx_requests_user_date"));
@@ -178,6 +188,9 @@ public class MongoMigrations {
     
     private void createInvoicesCollection() {
         logger.info("Creando colección 'invoices'...");
+
+        // Cambiar invoice por bill
+        
         
         MongoCollection<Document> collection = database.getCollection("invoices");
         

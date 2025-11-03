@@ -1,0 +1,170 @@
+═══════════════════════════════════════════════════════════════
+    CHEAT SHEET - TP BBDD 2 - DATOS PARA COPIAR/PEGAR
+═══════════════════════════════════════════════════════════════
+
+🚀 EJECUTAR
+═══════════════════════════════════════════════════════════════
+cd "/Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app"
+java -jar target/tp-bbdd-2-app-1.0.0.jar
+
+
+🔐 LOGIN ADMIN
+═══════════════════════════════════════════════════════════════
+Email: admin@admin.com
+Contraseña: admin
+
+
+📧 OTROS USUARIOS (Contraseña: password123)
+═══════════════════════════════════════════════════════════════
+maria.gonzalez@uade.edu.ar       (Operador)
+carlos.rodriguez@uade.edu.ar     (Analista)
+ana.martinez@uade.edu.ar         (Técnico)
+luis.fernandez@uade.edu.ar       (Operador)
+
+
+📡 IDS DE SENSORES (Copiar/Pegar)
+═══════════════════════════════════════════════════════════════
+
+Buenos Aires - Laboratorio A:
+550e8400-e29b-41d4-a716-446655440001
+
+Buenos Aires - Laboratorio B:
+550e8400-e29b-41d4-a716-446655440002
+
+Córdoba - Aula Magna:
+550e8400-e29b-41d4-a716-446655440003
+
+Córdoba - Biblioteca:
+550e8400-e29b-41d4-a716-446655440004
+
+Rosario - Sala de Servidores:
+550e8400-e29b-41d4-a716-446655440005
+
+Mendoza - Laboratorio C:
+550e8400-e29b-41d4-a716-446655440006
+
+
+🏙️ CIUDADES
+═══════════════════════════════════════════════════════════════
+Buenos Aires
+Córdoba
+Rosario
+Mendoza
+La Plata
+
+
+🎯 FLUJO DE DEMO (3 minutos)
+═══════════════════════════════════════════════════════════════
+
+1. LOGIN ADMIN
+   Email: admin@admin.com
+   Contraseña: admin
+   → Mostrar 7 opciones del menú
+
+2. SOLICITAR PROCESO (Opción 3)
+   - Opción 1: Solicitar reporte
+   - Tipo: 1 (Max/Min)
+   - Ciudad: Buenos Aires
+   - Fecha: [Enter]
+   → Copiar ID del proceso generado
+
+3. EJECUTAR PROCESO (Opción 3)
+   - Opción 3: Ejecutar proceso
+   - ID: [Pegar ID del paso anterior]
+   → Mostrar resultado y factura
+
+4. VER FACTURA (Opción 5)
+   - Opción 1: Ver facturas
+   → Mostrar factura generada
+   - Opción 2: Ver saldo
+   → Mostrar débito
+
+5. ENVIAR MENSAJE (Opción 4)
+   - Opción 1: Enviar mensaje
+   - Email: maria.gonzalez@uade.edu.ar
+   - Mensaje: Hola María, revisa el sensor
+   → Mensaje enviado
+
+6. VER CONVERSACIÓN (Opción 4)
+   - Opción 3: Ver mensajes
+   - Email: maria.gonzalez@uade.edu.ar
+   → Mostrar conversación
+
+7. LOGOUT Y CAMBIAR USUARIO
+   - Opción 0: Salir
+   - ¿Otro usuario? s
+   - Email: maria.gonzalez@uade.edu.ar
+   - Contraseña: password123
+   → Mostrar menos opciones (6 en vez de 7)
+
+
+👤 VER PERFIL DE USUARIO (Por Email)
+═══════════════════════════════════════════════════════════════
+
+Opción: 1 (Gestión de Usuarios)
+Opción: 3 (Ver perfil de usuario)
+
+Email del usuario: maria.gonzalez@uade.edu.ar
+
+→ Muestra nombre, departamento, permisos, etc.
+
+
+💬 MENSAJERÍA - EJEMPLOS
+═══════════════════════════════════════════════════════════════
+
+Enviar a: maria.gonzalez@uade.edu.ar
+Mensaje: Hola María, ¿puedes revisar el sensor de Buenos Aires?
+
+Enviar a: carlos.rodriguez@uade.edu.ar
+Mensaje: Carlos, necesito el reporte de temperaturas de hoy
+
+Ver conversación con: maria.gonzalez@uade.edu.ar
+
+
+📊 REGISTRAR MEDICIÓN
+═══════════════════════════════════════════════════════════════
+
+Opción: 2 (Gestión de Sensores)
+Opción: 1 (Registrar medición)
+
+ID de sensor: 550e8400-e29b-41d4-a716-446655440001
+Temperatura: 23.5
+Humedad: 65.0
+Ciudad: Buenos Aires
+País: Argentina
+
+
+📋 SOLICITAR REPORTE
+═══════════════════════════════════════════════════════════════
+
+Opción: 3 (Gestión de Procesos)
+Opción: 1 (Solicitar reporte)
+
+Tipo de reporte: 1
+Ciudad: Buenos Aires
+Fecha: [Enter para hoy]
+
+
+🎓 EXPLICACIONES TÉCNICAS PARA LA CLASE
+═══════════════════════════════════════════════════════════════
+
+Al solicitar proceso:
+"Se guarda en MongoDB en la colección process_requests"
+
+Al ejecutar proceso:
+"Consulta las mediciones de Cassandra y calcula estadísticas"
+
+Al mostrar permisos:
+"Los permisos vienen de Neo4j usando relaciones de grafo"
+
+Al generar factura:
+"Se crea en MongoDB y se debita automáticamente la cuenta corriente"
+
+Al enviar mensaje:
+"Se almacena en Cassandra optimizado para series temporales"
+
+
+═══════════════════════════════════════════════════════════════
+VERSIÓN FINAL - LISTO PARA DEMOSTRAR
+═══════════════════════════════════════════════════════════════
+

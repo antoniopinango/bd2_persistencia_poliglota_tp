@@ -55,7 +55,7 @@ public class Sensor {
     @BsonProperty("installDate")
     @JsonProperty("installDate")
     @JsonFormat(pattern = "yyyy-MM-dd")
-    private LocalDate installDate;
+    private LocalDate installDate; // Revisar
     
     @BsonProperty("startedAt")
     @JsonProperty("startedAt")

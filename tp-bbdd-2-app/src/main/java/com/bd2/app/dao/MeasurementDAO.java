@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -361,5 +362,59 @@ public class MeasurementDAO {
         measurement.setDay(LocalDate.now());
         
         return measurement;
+    }
+    
+    /**
+     * Obtiene estadísticas de temperatura/humedad de una ciudad en un día (SIMPLE)
+     */
+    public Map<String, Object> getTemperatureStats(String city, LocalDate date) {
+        Map<String, Object> stats = new HashMap<>();
+        
+        try {
+            String query = "SELECT temperature, humidity FROM measurements_by_city_day " +
+                          "WHERE city = ? AND day = ?";
+            
+            BoundStatement bound = session.prepare(query)
+                .bind(city, date);
+            
+            ResultSet rs = session.execute(bound);
+            
+            double maxTemp = Double.MIN_VALUE;
+            double minTemp = Double.MAX_VALUE;
+            double maxHum = Double.MIN_VALUE;
+            double minHum = Double.MAX_VALUE;
+            double sumTemp = 0;
+            double sumHum = 0;
+            int count = 0;
+            
+            for (Row row : rs) {
+                double temp = row.getDouble("temperature");
+                double hum = row.getDouble("humidity");
+                
+                maxTemp = Math.max(maxTemp, temp);
+                minTemp = Math.min(minTemp, temp);
+                maxHum = Math.max(maxHum, hum);
+                minHum = Math.min(minHum, hum);
+                sumTemp += temp;
+                sumHum += hum;
+                count++;
+            }
+            
+            stats.put("maxTemp", count > 0 ? maxTemp : 0);
+            stats.put("minTemp", count > 0 ? minTemp : 0);
+            stats.put("maxHumidity", count > 0 ? maxHum : 0);
+            stats.put("minHumidity", count > 0 ? minHum : 0);
+            stats.put("avgTemp", count > 0 ? sumTemp / count : 0);
+            stats.put("avgHumidity", count > 0 ? sumHum / count : 0);
+            stats.put("count", count);
+            
+            logger.debug("Estadísticas calculadas para {} en {}: {} mediciones", city, date, count);
+            
+        } catch (Exception e) {
+            logger.error("Error calculando estadísticas", e);
+            stats.put("error", e.getMessage());
+        }
+        
+        return stats;
     }
 }

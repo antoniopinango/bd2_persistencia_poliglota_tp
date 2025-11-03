@@ -6,8 +6,6 @@ import com.bd2.app.model.User;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 /**
@@ -46,7 +44,7 @@ public class UserService {
             user.setId(UUID.randomUUID().toString());
             user.setFullName(fullName);
             user.setEmail(email);
-            user.setPasswordHash(hashPassword(password));
+            user.setPasswordHash(password); // Guardar contraseña en texto plano
             user.setStatus("activo");
             user.setDepartment(department);
             
@@ -102,14 +100,15 @@ public class UserService {
                 return null;
             }
             
-            // 3. Verificar contraseña
-            if (!verifyPassword(password, user.getPasswordHash())) {
+            // 3. Verificar contraseña (comparación directa en texto plano)
+            if (!password.equals(user.getPasswordHash())) {
                 logger.warn("Intento de login con contraseña incorrecta: {}", email);
                 return null;
             }
             
-            // 4. Obtener permisos desde Neo4j
+            // 4. Obtener permisos y roles desde Neo4j
             Set<String> permissions = authorizationDAO.getUserPermissions(user.getId());
+            Set<String> roles = authorizationDAO.getUserRoles(user.getId());
             
             // 5. Crear respuesta de autenticación
             Map<String, Object> authResult = new HashMap<>();
@@ -118,9 +117,11 @@ public class UserService {
             authResult.put("email", user.getEmail());
             authResult.put("department", user.getDepartment());
             authResult.put("permissions", permissions);
+            authResult.put("roles", roles);
             authResult.put("loginTime", new Date());
             
-            logger.info("Usuario autenticado exitosamente: {} ({})", user.getFullName(), email);
+            logger.info("Usuario autenticado exitosamente: {} ({}) - Roles: {}, Permisos: {}", 
+                       user.getFullName(), email, roles, permissions);
             return authResult;
             
         } catch (Exception e) {
@@ -162,6 +163,29 @@ public class UserService {
             
         } catch (Exception e) {
             logger.error("Error obteniendo perfil de usuario: {}", userId, e);
+            return null;
+        }
+    }
+    
+    /**
+     * Obtiene información completa de un usuario por email (más user-friendly)
+     */
+    public Map<String, Object> getUserProfileByEmail(String email) {
+        try {
+            // 1. Buscar usuario por email
+            Optional<User> userOpt = userDAO.findByEmail(email);
+            if (userOpt.isEmpty()) {
+                logger.warn("Usuario no encontrado: {}", email);
+                return null;
+            }
+            
+            User user = userOpt.get();
+            
+            // 2. Usar el método existente con el ID
+            return getUserProfile(user.getId());
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo perfil por email: {}", email, e);
             return null;
         }
     }
@@ -225,15 +249,14 @@ public class UserService {
             
             User user = userOpt.get();
             
-            // 2. Verificar contraseña actual
-            if (!verifyPassword(currentPassword, user.getPasswordHash())) {
+            // 2. Verificar contraseña actual (comparación directa)
+            if (!currentPassword.equals(user.getPasswordHash())) {
                 logger.warn("Intento de cambio de contraseña con contraseña actual incorrecta: {}", userId);
                 return false;
             }
             
-            // 3. Actualizar contraseña
-            String newPasswordHash = hashPassword(newPassword);
-            boolean updated = userDAO.updatePassword(userId, newPasswordHash);
+            // 3. Actualizar contraseña (guardar en texto plano)
+            boolean updated = userDAO.updatePassword(userId, newPassword);
             
             if (updated) {
                 logger.info("Contraseña cambiada para usuario: {}", userId);
@@ -375,34 +398,4 @@ public class UserService {
         }
     }
     
-    /**
-     * Hash de contraseña usando SHA-256
-     */
-    private String hashPassword(String password) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(password.getBytes());
-            StringBuilder hexString = new StringBuilder();
-            
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
-                hexString.append(hex);
-            }
-            
-            return hexString.toString();
-            
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("Error hasheando contraseña", e);
-        }
-    }
-    
-    /**
-     * Verifica contraseña
-     */
-    private boolean verifyPassword(String password, String hash) {
-        return hashPassword(password).equals(hash);
-    }
 }

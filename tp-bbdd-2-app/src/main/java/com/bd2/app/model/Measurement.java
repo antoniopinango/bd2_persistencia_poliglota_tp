@@ -13,7 +13,10 @@ import java.util.UUID;
  * Representa una medición de sensor en un momento específico
  */
 public class Measurement {
+
+    // Agregar Id de Medición
     
+
     @JsonProperty("sensorId")
     private String sensorId;
     

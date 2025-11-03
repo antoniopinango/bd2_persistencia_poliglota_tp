@@ -49,13 +49,13 @@ public class CassandraConnectionManager {
                 .withInt(DefaultDriverOption.CONNECTION_POOL_REMOTE_SIZE, config.getCassandraCoreConnections())
                 .withInt(DefaultDriverOption.CONNECTION_MAX_REQUESTS, config.getCassandraMaxRequestsPerConnection())
                 .withDuration(DefaultDriverOption.HEARTBEAT_INTERVAL, Duration.ofMillis(config.getCassandraHeartbeatInterval()))
-                .withDuration(DefaultDriverOption.CONNECTION_INIT_QUERY_TIMEOUT, Duration.ofMillis(30000))
-                .withDuration(DefaultDriverOption.CONNECTION_SET_KEYSPACE_TIMEOUT, Duration.ofMillis(30000));
+                .withDuration(DefaultDriverOption.CONNECTION_INIT_QUERY_TIMEOUT, Duration.ofMillis(90000))
+                .withDuration(DefaultDriverOption.CONNECTION_SET_KEYSPACE_TIMEOUT, Duration.ofMillis(90000));
             
             // Configuración de timeouts
             configBuilder
                 .withDuration(DefaultDriverOption.REQUEST_TIMEOUT, Duration.ofMillis(config.getQueryTimeout()))
-                .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, Duration.ofMillis(30000));
+                .withDuration(DefaultDriverOption.CONNECTION_CONNECT_TIMEOUT, Duration.ofMillis(90000));
             
             // Configuración de reconexión
             configBuilder

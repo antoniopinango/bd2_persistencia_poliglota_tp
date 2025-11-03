@@ -212,6 +212,7 @@ public class CassandraMigrations {
               AND compaction = {'class': 'TimeWindowCompactionStrategy','compaction_window_unit':'DAYS','compaction_window_size':'1'}
               AND compression = {'class':'LZ4Compressor'}
             """);
+        // Agregar destinatario y cambiar type por booleano. (true: privado, false: grupal)
         
         // conversations_by_user
         session.execute("""
@@ -288,6 +289,10 @@ public class CassandraMigrations {
     private void createExecutionLogTables() {
         logger.info("Creando tablas de logs de ejecución...");
         
+        // Solicitud ?? Id de la solicitud 
+
+        // Metrics eliminar.
+
         // exec_log_by_request
         session.execute("""
             CREATE TABLE IF NOT EXISTS exec_log_by_request (

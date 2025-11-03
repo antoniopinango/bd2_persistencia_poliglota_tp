@@ -59,23 +59,89 @@ public class DataSeeder {
         logger.info("🌱 Iniciando seeding de datos...");
         
         try {
-            // Verificar si ya hay datos
-            if (dataAlreadyExists()) {
-                logger.info("⚠️  Los datos ya existen. Saltando seeding.");
-                return;
+            // Verificar si ya hay datos en MongoDB
+            boolean dataExists = dataAlreadyExists();
+            
+            if (dataExists) {
+                logger.info("⚠️  Datos de MongoDB ya existen. Saltando seeding de MongoDB.");
+                logger.info("✅ Sincronizando usuarios existentes a Neo4j...");
+                
+                // Obtener usuarios de MongoDB y sincronizar a Neo4j
+                syncExistingUsersToNeo4j();
+            } else {
+                // Seed completo si no hay datos
+                seedMongoData();
+                seedNeo4jData();
+                seedCassandraData();
+                
+                logger.info("✅ Seeding completado exitosamente!");
+                logSeedingSummary();
             }
-            
-            // Seed en orden de dependencias
-            seedMongoData();
-            seedNeo4jData();
-            seedCassandraData();
-            
-            logger.info("✅ Seeding completado exitosamente!");
-            logSeedingSummary();
             
         } catch (Exception e) {
             logger.error("❌ Error durante el seeding", e);
             throw new RuntimeException("Fallo en el seeding de datos", e);
+        }
+    }
+    
+    /**
+     * Sincroniza usuarios existentes de MongoDB a Neo4j y asigna permisos
+     */
+    private void syncExistingUsersToNeo4j() {
+        logger.info("🔄 Sincronizando usuarios de MongoDB a Neo4j...");
+        
+        try (Session session = neo4jDriver.session()) {
+            MongoCollection<Document> users = mongoDb.getCollection("users");
+            
+            // Obtener todos los usuarios de MongoDB
+            for (Document userDoc : users.find()) {
+                String userId = userDoc.getString("_id");
+                String email = userDoc.getString("email");
+                String fullName = userDoc.getString("fullName");
+                String status = userDoc.getString("status");
+                String department = userDoc.getString("department");
+                
+                // Crear/actualizar usuario en Neo4j
+                session.run(
+                    "MERGE (u:User {id: $userId}) " +
+                    "SET u.email = $email, u.fullName = $fullName, u.status = $status, u.department = $department",
+                    Map.of("userId", userId, "email", email, "fullName", fullName, 
+                           "status", status, "department", department)
+                );
+                
+                // Si es el admin, asignar TODOS los permisos
+                if (email.equals("admin@admin.com")) {
+                    logger.info("🔐 Configurando permisos completos para admin...");
+                    
+                    // Asignar TODOS los roles
+                    session.run(
+                        "MATCH (u:User {id: $userId}), (r:Role) " +
+                        "MERGE (u)-[:HAS_ROLE]->(r)",
+                        Map.of("userId", userId)
+                    );
+                    
+                    // Asignar TODOS los permisos directos
+                    session.run(
+                        "MATCH (u:User {id: $userId}), (p:ProcessType) " +
+                        "MERGE (u)-[:CAN_EXECUTE]->(p)",
+                        Map.of("userId", userId)
+                    );
+                    
+                    // Agregar a TODOS los grupos
+                    session.run(
+                        "MATCH (u:User {id: $userId}), (g:Group) " +
+                        "MERGE (u)-[:MEMBER_OF]->(g)",
+                        Map.of("userId", userId)
+                    );
+                    
+                    logger.info("✅ Admin configurado con acceso total");
+                }
+            }
+            
+            logger.info("✅ Sincronización completada");
+            
+        } catch (Exception e) {
+            logger.error("Error sincronizando usuarios a Neo4j", e);
         }
     }
     
@@ -140,6 +206,21 @@ public class DataSeeder {
         
         MongoCollection<Document> users = mongoDb.getCollection("users");
         
+        // Usuario administrador principal
+        String adminId = UUID.randomUUID().toString();
+        userIds.add(adminId);
+        
+        Document adminUser = new Document("_id", adminId)
+            .append("fullName", "Admin Sistema")
+            .append("email", "admin@admin.com")
+            .append("passwordHash", "admin") // Contraseña en texto plano
+            .append("status", "activo")
+            .append("department", "Administración")
+            .append("roleId", "role_admin")
+            .append("registeredAt", new Date())
+            .append("updatedAt", new Date())
+            .append("lastLogin", new Date());
+        
         String[][] usersData = {
             {"Juan", "Pérez", "juan.perez@uade.edu.ar", "Ingeniería", "role_admin"},
             {"María", "González", "maria.gonzalez@uade.edu.ar", "Ciencias", "role_operator"},
@@ -154,19 +235,21 @@ public class DataSeeder {
         };
         
         List<Document> userDocs = new ArrayList<>();
+        userDocs.add(adminUser); // Agregar admin primero
         
         for (String[] userData : usersData) {
             String userId = UUID.randomUUID().toString();
             userIds.add(userId);
             
             Document user = new Document("_id", userId)
-                .append("firstName", userData[0])
-                .append("lastName", userData[1])
+                .append("fullName", userData[0] + " " + userData[1])
                 .append("email", userData[2])
+                .append("passwordHash", "password123") // Password por defecto en texto plano
+                .append("status", "activo")
                 .append("department", userData[3])
                 .append("roleId", userData[4])
-                .append("active", true)
-                .append("createdAt", new Date())
+                .append("registeredAt", new Date())
+                .append("updatedAt", new Date())
                 .append("lastLogin", new Date());
             
             userDocs.add(user);
@@ -174,7 +257,7 @@ public class DataSeeder {
         
         try {
             users.insertMany(userDocs);
-            logger.info("✓ {} usuarios insertados", userDocs.size());
+            logger.info("✓ {} usuarios insertados (incluyendo admin@admin.com)", userDocs.size());
         } catch (Exception e) {
             logger.warn("Error insertando usuarios: {}", e.getMessage());
         }
@@ -184,6 +267,20 @@ public class DataSeeder {
         logger.info("Insertando sensores...");
         
         MongoCollection<Document> sensors = mongoDb.getCollection("sensors");
+        
+        // IDs fijos para facilitar testing
+        String[] fixedSensorIds = {
+            "550e8400-e29b-41d4-a716-446655440001", // Buenos Aires - Lab A
+            "550e8400-e29b-41d4-a716-446655440002", // Buenos Aires - Lab B
+            "550e8400-e29b-41d4-a716-446655440003", // Córdoba - Aula Magna
+            "550e8400-e29b-41d4-a716-446655440004", // Córdoba - Biblioteca
+            "550e8400-e29b-41d4-a716-446655440005", // Rosario - Servidores
+            "550e8400-e29b-41d4-a716-446655440006", // Mendoza - Lab C
+            "550e8400-e29b-41d4-a716-446655440007", // La Plata - Aula 101
+            "550e8400-e29b-41d4-a716-446655440008", // Buenos Aires - Oficina
+            "550e8400-e29b-41d4-a716-446655440009", // Córdoba - Cafetería
+            "550e8400-e29b-41d4-a716-446655440010"  // Rosario - Auditorio
+        };
         
         String[][] sensorsData = {
             {"Buenos Aires", "Laboratorio A", "temperature_humidity", "-34.6037", "-58.3816"},
@@ -200,8 +297,9 @@ public class DataSeeder {
         
         List<Document> sensorDocs = new ArrayList<>();
         
-        for (String[] sensorData : sensorsData) {
-            String sensorId = UUID.randomUUID().toString();
+        for (int i = 0; i < sensorsData.length; i++) {
+            String[] sensorData = sensorsData[i];
+            String sensorId = fixedSensorIds[i];
             sensorIds.add(sensorId);
             
             Document sensor = new Document("_id", sensorId)
@@ -306,38 +404,56 @@ public class DataSeeder {
         logger.info("🕸️  Seeding Neo4j...");
         
         try (Session session = neo4jDriver.session()) {
-            // Crear usuarios
+            // Crear usuarios con información completa
             for (int i = 0; i < userIds.size(); i++) {
+                String email = i == 0 ? "admin@admin.com" : "user" + i + "@uade.edu.ar";
+                String fullName = i == 0 ? "Admin Sistema" : "Usuario " + i;
+                String status = "activo";
+                String department = i == 0 ? "Administración" : "Departamento " + (i % 3);
+                
                 session.run(
                     "MERGE (u:User {id: $userId}) " +
-                    "SET u.email = $email, u.active = true",
-                    Map.of("userId", userIds.get(i), "email", "user" + i + "@uade.edu.ar")
+                    "SET u.email = $email, u.fullName = $fullName, u.status = $status, u.department = $department",
+                    Map.of("userId", userIds.get(i), "email", email, "fullName", fullName, 
+                           "status", status, "department", department)
                 );
             }
             
-            // Crear roles
-            session.run("MERGE (r:Role {id: 'role_admin', name: 'Administrador'})");
-            session.run("MERGE (r:Role {id: 'role_operator', name: 'Operador'})");
-            session.run("MERGE (r:Role {id: 'role_analyst', name: 'Analista'})");
-            session.run("MERGE (r:Role {id: 'role_technician', name: 'Técnico'})");
+            // Asignar roles a usuarios usando los roles de las migraciones
+            // El primer usuario (admin@admin.com) obtiene TODOS los roles
+            logger.info("Asignando TODOS los roles al usuario admin...");
+            session.run(
+                "MATCH (u:User {id: $userId}), (r:Role) " +
+                "MERGE (u)-[:HAS_ROLE]->(r)",
+                Map.of("userId", userIds.get(0))
+            );
             
-            // Asignar roles a usuarios
-            String[] roleAssignments = {"role_admin", "role_operator", "role_analyst", "role_technician", 
-                                       "role_operator", "role_analyst", "role_operator", "role_analyst", 
-                                       "role_technician", "role_operator"};
-            
-            for (int i = 0; i < Math.min(userIds.size(), roleAssignments.length); i++) {
+            // Asignar roles a los demás usuarios
+            for (int i = 1; i < userIds.size(); i++) {
+                String roleName = i % 3 == 0 ? "usuario" : i % 3 == 1 ? "tecnico" : "usuario";
                 session.run(
-                    "MATCH (u:User {id: $userId}), (r:Role {id: $roleId}) " +
+                    "MATCH (u:User {id: $userId}), (r:Role {name: $roleName}) " +
                     "MERGE (u)-[:HAS_ROLE]->(r)",
-                    Map.of("userId", userIds.get(i), "roleId", roleAssignments[i])
+                    Map.of("userId", userIds.get(i), "roleName", roleName)
                 );
             }
             
-            // Crear grupos
+            // Crear grupos adicionales
             session.run("MERGE (g:Group {id: 'group_engineering', name: 'Ingeniería'})");
             session.run("MERGE (g:Group {id: 'group_science', name: 'Ciencias'})");
             session.run("MERGE (g:Group {id: 'group_architecture', name: 'Arquitectura'})");
+            
+            // Dar permisos a los grupos adicionales
+            session.run(
+                "MATCH (g:Group {id: 'group_engineering'}), (p:ProcessType) " +
+                "WHERE p.id IN ['pt_maxmin', 'pt_prom'] " +
+                "MERGE (g)-[:CAN_EXECUTE]->(p)"
+            );
+            
+            session.run(
+                "MATCH (g:Group {id: 'group_science'}), (p:ProcessType {id: 'pt_prom'}) " +
+                "MERGE (g)-[:CAN_EXECUTE]->(p)"
+            );
             
             // Asignar usuarios a grupos
             for (int i = 0; i < userIds.size(); i++) {
@@ -350,13 +466,13 @@ public class DataSeeder {
                 );
             }
             
-            // Crear ubicaciones
+            // Crear ubicaciones adicionales
             for (String city : cityCountryMap.keySet()) {
                 String country = cityCountryMap.get(city);
                 session.run(
                     "MERGE (c:City {name: $city}) " +
                     "MERGE (co:Country {name: $country}) " +
-                    "MERGE (c)-[:LOCATED_IN]->(co)",
+                    "MERGE (c)-[:IN_COUNTRY]->(co)",
                     Map.of("city", city, "country", country)
                 );
             }
@@ -371,36 +487,54 @@ public class DataSeeder {
                     "MERGE (s:Sensor {id: $sensorId}) " +
                     "WITH s " +
                     "MATCH (c:City {name: $city}) " +
-                    "MERGE (s)-[:LOCATED_IN]->(c)",
+                    "MERGE (s)-[:IN_CITY]->(c)",
                     Map.of("sensorId", sensorId, "city", city)
                 );
                 cityIndex++;
             }
             
-            // Crear permisos
-            session.run("MERGE (p:Permission {id: 'perm_read', name: 'Lectura'})");
-            session.run("MERGE (p:Permission {id: 'perm_write', name: 'Escritura'})");
-            session.run("MERGE (p:Permission {id: 'perm_delete', name: 'Eliminación'})");
-            session.run("MERGE (p:Permission {id: 'perm_admin', name: 'Administración'})");
+            // Crear ProcessTypes adicionales si no existen
+            session.run("""
+                MERGE (p:ProcessType {id: 'pt_admin_usuarios', name: 'Administrar Usuarios'})
+                SET p.description = 'Gestión completa de usuarios'
+                """);
             
-            // Asignar permisos a roles
+            session.run("""
+                MERGE (p:ProcessType {id: 'pt_admin_grupos', name: 'Administrar Grupos'})
+                SET p.description = 'Gestión completa de grupos'
+                """);
+            
+            session.run("""
+                MERGE (p:ProcessType {id: 'pt_admin_sensores', name: 'Administrar Sensores'})
+                SET p.description = 'Gestión completa de sensores'
+                """);
+            
+            // Asignar permisos administrativos al rol admin
+            logger.info("Asignando todos los ProcessTypes al rol admin...");
+            session.run("""
+                MATCH (r:Role {name: 'admin'}), (p:ProcessType)
+                MERGE (r)-[:CAN_EXECUTE]->(p)
+                """);
+            
+            // BONUS: Asignar DIRECTAMENTE al usuario admin TODOS los permisos
+            // Esto garantiza que el admin tenga permisos incluso si hay problemas con roles
+            logger.info("Asignando DIRECTAMENTE todos los ProcessTypes al usuario admin...");
             session.run(
-                "MATCH (r:Role {id: 'role_admin'}), (p:Permission) " +
-                "MERGE (r)-[:HAS_PERMISSION]->(p)"
+                "MATCH (u:User {id: $userId}), (p:ProcessType) " +
+                "MERGE (u)-[:CAN_EXECUTE]->(p)",
+                Map.of("userId", userIds.get(0))
             );
             
+            // Agregar al usuario admin a TODOS los grupos
+            logger.info("Agregando usuario admin a TODOS los grupos...");
             session.run(
-                "MATCH (r:Role {id: 'role_operator'}), (p:Permission) " +
-                "WHERE p.id IN ['perm_read', 'perm_write'] " +
-                "MERGE (r)-[:HAS_PERMISSION]->(p)"
-            );
-            
-            session.run(
-                "MATCH (r:Role {id: 'role_analyst'}), (p:Permission {id: 'perm_read'}) " +
-                "MERGE (r)-[:HAS_PERMISSION]->(p)"
+                "MATCH (u:User {id: $userId}), (g:Group) " +
+                "MERGE (u)-[:MEMBER_OF]->(g)",
+                Map.of("userId", userIds.get(0))
             );
             
             logger.info("✓ Datos de Neo4j insertados");
+            logger.info("✓ Usuario admin configurado con TODOS los permisos, roles y grupos");
         }
         
         logger.info("✅ Neo4j seeding completado");

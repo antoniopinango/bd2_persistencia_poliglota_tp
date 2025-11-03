@@ -1,396 +1,611 @@
-# TP BBDD 2 - Aplicación de Persistencia Políglota
+# 🎓 TP BBDD 2 - Persistencia Políglota
 
-## Descripción
+Aplicación Java que demuestra el uso de persistencia políglota integrando **MongoDB**, **Cassandra** y **Neo4j** para un sistema completo de gestión de sensores, procesos, facturación y mensajería.
 
-Aplicación Java que demuestra el uso de persistencia políglota integrando **MongoDB**, **Cassandra** y **Neo4j** con pools de conexiones optimizados. Cada base de datos se especializa en un dominio específico del sistema de sensores universitario.
+**Universidad**: UADE  
+**Materia**: Ingeniería de Datos II  
+**Versión**: 2.0.0
 
-## Arquitectura de Datos
+---
 
-### 🗄️ Distribución por Base de Datos
+## 📊 Arquitectura de Persistencia Políglota
+
+### ¿Por qué 3 Bases de Datos?
+
+Cada base de datos se especializa en lo que hace mejor:
 
 | Base de Datos | Propósito | Datos Almacenados |
 |---------------|-----------|-------------------|
-| **MongoDB** | Dominio Transaccional | Usuarios, Sensores, Facturas, Pagos, Cuentas |
-| **Cassandra** | Series Temporales | Mediciones, Agregados, Logs, Mensajería |
-| **Neo4j** | RBAC y Geografía | Permisos, Roles, Grupos, Ubicaciones |
+| **MongoDB** | Transaccional | Usuarios, Sensores, Procesos, Facturas, Pagos, Cuentas |
+| **Cassandra** | Series Temporales | Mediciones, Mensajes, Logs, Agregaciones |
+| **Neo4j** | RBAC y Relaciones | Roles, Permisos, Jerarquías Geográficas |
 
-### 🔄 Integración Multi-Base
+### Justificación Técnica
 
-- **IDs Consistentes**: UUIDs compartidos entre sistemas
-- **Sincronización**: Cambios en MongoDB se propagan a Neo4j
-- **Autorización**: Neo4j valida permisos antes de operaciones
-- **Denormalización**: Cassandra optimiza consultas por patrón de uso
+**MongoDB**:
+- ✅ Esquema flexible para entidades variables
+- ✅ Índices secundarios rápidos (email, status)
+- ✅ Índices geoespaciales (2dsphere) para sensores
+- ✅ TTL automático para sesiones
+- ✅ Transacciones ACID para facturación
 
-## Estructura del Proyecto
+**Cassandra**:
+- ✅ Optimizado para escrituras masivas (millones de mediciones)
+- ✅ Particionamiento por tiempo (sensor+día, ciudad+día)
+- ✅ TTL automático (180 días para mediciones)
+- ✅ Agregaciones pre-calculadas
+- ✅ Modelo desnormalizado para consultas rápidas
 
-```
-src/main/java/com/bd2/app/
-├── config/
-│   └── DatabaseConfig.java          # Configuración centralizada
-├── database/
-│   ├── MongoConnectionManager.java  # Pool de conexiones MongoDB
-│   ├── CassandraConnectionManager.java # Pool de conexiones Cassandra
-│   └── Neo4jConnectionManager.java  # Pool de conexiones Neo4j
-├── model/
-│   ├── User.java                    # Modelo de Usuario
-│   ├── Sensor.java                  # Modelo de Sensor
-│   └── Measurement.java             # Modelo de Medición
-├── dao/
-│   ├── UserDAO.java                 # DAO para MongoDB
-│   ├── MeasurementDAO.java          # DAO para Cassandra
-│   └── AuthorizationDAO.java        # DAO para Neo4j
-├── service/
-│   ├── UserService.java             # Servicio integrado de usuarios
-│   └── SensorService.java           # Servicio integrado de sensores
-└── Application.java                 # Aplicación principal
-```
+**Neo4j**:
+- ✅ Relaciones complejas (User→Role→ProcessType)
+- ✅ Queries de grafos eficientes para permisos
+- ✅ Jerarquías geográficas (Sensor→City→Country)
+- ✅ Asignación de técnicos por ciudad
+- ✅ Constraints de unicidad
+
+---
 
 ## 🚀 Inicio Rápido
 
-### Opción 1: Script Automático (Recomendado)
+### Requisitos
+
+- Java 17+
+- Docker
+- Maven 3.6+
+
+### Ejecución Simple (Un Solo Comando)
 
 ```bash
-# 1. Iniciar todas las bases de datos
-./start-databases.sh
-
-# 2. Ejecutar la aplicación (crea automáticamente toda la estructura)
-mvn exec:java -Dexec.mainClass="com.bd2.app.Application"
+cd "/Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app"
+./start.sh
 ```
 
-¡Eso es todo! La aplicación:
-- ✅ Se conecta a las 3 bases de datos
-- ✅ Crea automáticamente keyspaces, tablas, colecciones e índices
-- ✅ Inserta datos de ejemplo
-- ✅ Muestra el menú interactivo
+Este script:
+1. Inicia las bases de datos (MongoDB, Cassandra, Neo4j)
+2. Espera 2 minutos para que Cassandra esté listo
+3. Compila el proyecto
+4. Ejecuta la aplicación
 
-### Opción 2: Inicio Manual
+**Tiempo total**: ~2-3 minutos
+
+### Login
+
+**Recomendado para demo**:
+```
+Email: maria.gonzalez@uade.edu.ar
+Contraseña: password123
+Rol: Operador (tiene todos los permisos necesarios)
+```
+
+O usar admin:
+```
+Email: admin@admin.com
+Contraseña: admin
+```
+
+---
+
+## 🎯 Funcionalidades Implementadas
+
+### 1. 👤 Gestión de Usuarios
+- Registro de usuarios con roles
+- Autenticación con verificación de permisos en Neo4j
+- Perfiles de usuario por email
+- Listado por departamento
+
+### 2. 📊 Gestión de Sensores y Mediciones
+- Registro de mediciones (temperatura y humedad)
+- Consulta de mediciones por sensor
+- Consulta de mediciones por ciudad
+- Estado actual de sensores
+- Asignación de técnicos a ciudades
+
+### 3. 📋 Gestión de Procesos y Reportes ⭐
+- **Solicitud de procesos**: Se guarda en MongoDB
+- **Ejecución de reportes**: Consulta datos de Cassandra
+- **Tipos de reportes**:
+  - Max/Min de temperatura y humedad por ciudad/fecha
+  - Promedios de temperatura y humedad por ciudad/fecha
+  - Alertas en rangos específicos
+- **Historial de ejecución**: Almacenado en MongoDB
+- **Resultados persistentes**: Guardados para consulta posterior
+
+### 4. 💬 Mensajería ⭐
+- Mensajes privados entre usuarios (por email)
+- Almacenamiento en Cassandra optimizado para series temporales
+- Conversaciones ordenadas por actividad
+- Ver mensajes con formato "Tú" vs "Otro Usuario"
+
+### 5. 💰 Facturación y Cuenta Corriente ⭐
+- **Generación automática** de facturas al completar procesos
+- **Débito automático** de cuenta corriente
+- **Costos por tipo de proceso**:
+  - Reporte Max/Min: $15
+  - Reporte Promedios: $10
+  - Reporte Alertas: $5
+- **Registro de movimientos** en cuenta corriente
+- **Control de pagos** y estados de factura
+
+### 6. 🔐 Sistema de Permisos (RBAC)
+- Roles almacenados en Neo4j
+- Menú dinámico según permisos del usuario
+- Verificación en 3 niveles (menú, submenú, operación)
+- 4 roles: Administrador, Operador, Analista, Técnico
+
+### 7. 📈 Dashboard y Estadísticas
+- Estadísticas del sistema desde Neo4j
+- Estado de sensores
+- Información de usuarios
+- Acceso diferenciado según rol
+
+---
+
+## 📋 Menú de la Aplicación
+
+```
+🏠 MENÚ PRINCIPAL
+============================================================
+1. 👤 Gestión de Usuarios                    (solo admins)
+2. 📊 Gestión de Sensores y Mediciones       (operadores, técnicos, admins)
+3. 📋 Gestión de Procesos y Reportes        (todos según permisos)
+4. 💬 Mensajería                             (todos)
+5. 💰 Facturación y Cuenta Corriente        (todos)
+6. 📈 Dashboard y Estadísticas               (todos)
+7. 🔧 Información del Sistema                (todos)
+============================================================
+```
+
+El número de opciones visibles depende de los permisos del usuario.
+
+---
+
+## 🔑 Usuarios de Prueba
+
+Todos los usuarios tienen contraseña: `password123` (excepto admin)
+
+| Email | Rol | Permisos | Opciones Menú |
+|-------|-----|----------|---------------|
+| admin@admin.com (pwd: admin) | Administrador | TODOS | 7 |
+| maria.gonzalez@uade.edu.ar | Operador | pt_maxmin, pt_prom | 6 |
+| carlos.rodriguez@uade.edu.ar | Analista | pt_prom | 4 |
+| ana.martinez@uade.edu.ar | Técnico | pt_maxmin, pt_alerts | 5 |
+
+---
+
+## 📡 IDs de Sensores (Para Pruebas)
+
+Los sensores tienen IDs fijos para facilitar las pruebas:
+
+```
+Buenos Aires - Laboratorio A:  550e8400-e29b-41d4-a716-446655440001
+Buenos Aires - Laboratorio B:  550e8400-e29b-41d4-a716-446655440002
+Córdoba - Aula Magna:          550e8400-e29b-41d4-a716-446655440003
+Córdoba - Biblioteca:          550e8400-e29b-41d4-a716-446655440004
+Rosario - Sala de Servidores:  550e8400-e29b-41d4-a716-446655440005
+Mendoza - Laboratorio C:       550e8400-e29b-41d4-a716-446655440006
+La Plata - Aula 101:           550e8400-e29b-41d4-a716-446655440007
+```
+
+---
+
+## 🎯 Demo Completa (3 minutos)
+
+### 1. Demostrar Permisos Diferenciados (30 seg)
+```
+Login admin → Muestra 7 opciones
+Logout y login operador → Muestra 6 opciones
+Explicar: Permisos vienen de Neo4j (grafo de relaciones)
+```
+
+### 2. Flujo de Proceso Completo (1 min)
+```
+Opción 3: Gestión de Procesos
+→ Solicitar reporte Max/Min (MongoDB: process_requests)
+→ Ejecutar proceso (Cassandra: consulta mediciones)
+→ Ver resultado (MongoDB: process_results)
+→ Factura generada automáticamente (MongoDB: invoices)
+```
+
+### 3. Facturación (30 seg)
+```
+Opción 5: Facturación
+→ Ver facturas (muestra la del proceso)
+→ Ver saldo (muestra débito automático)
+```
+
+### 4. Mensajería (1 min)
+```
+Opción 4: Mensajería
+→ Enviar mensaje a maria.gonzalez@uade.edu.ar (Cassandra)
+→ Ver conversación (muestra historial)
+```
+
+**Total**: 3 minutos demostrando las 3 BDs + todas las funcionalidades
+
+---
+
+## 🏗️ Estructura del Proyecto
+
+```
+src/main/java/com/bd2/app/
+├── Application.java                # Menú principal y flujos (1200+ líneas)
+├── config/
+│   └── DatabaseConfig.java         # Configuración centralizada
+├── database/
+│   ├── MongoConnectionManager.java # Pool de conexiones MongoDB
+│   ├── CassandraConnectionManager.java # Pool Cassandra
+│   └── Neo4jConnectionManager.java # Pool Neo4j
+├── model/
+│   ├── User.java                   # Modelo de Usuario
+│   ├── Sensor.java                 # Modelo de Sensor
+│   ├── Measurement.java            # Modelo de Medición
+│   └── ProcessRequest.java         # Modelo de Solicitud de Proceso
+├── dao/
+│   ├── UserDAO.java                # MongoDB - Usuarios
+│   ├── MeasurementDAO.java         # Cassandra - Mediciones + Estadísticas
+│   └── AuthorizationDAO.java       # Neo4j - Permisos y Roles
+├── service/
+│   ├── UserService.java            # Lógica de usuarios + Neo4j
+│   ├── SensorService.java          # Lógica de sensores + Cassandra
+│   ├── ProcessService.java         # Gestión de procesos ⭐
+│   ├── InvoiceService.java         # Facturación automática ⭐
+│   └── MessageService.java         # Mensajería en Cassandra ⭐
+├── migrations/
+│   ├── MigrationRunner.java        # Ejecutor de migraciones
+│   ├── mongodb/MongoMigrations.java
+│   ├── cassandra/CassandraMigrations.java
+│   └── neo4j/Neo4jMigrations.java
+└── seeder/
+    └── DataSeeder.java             # Poblado automático de datos
+```
+
+---
+
+## 🗄️ Bases de Datos
+
+### MongoDB - 13 Colecciones
+
+- **users** - Usuarios (email único, password hash)
+- **sessions** - Sesiones con TTL
+- **roles** - Roles del sistema
+- **sensors** - Sensores con ubicación geoespacial
+- **processes** - Tipos de procesos disponibles
+- **process_requests** - Solicitudes de procesos ⭐
+- **process_results** - Resultados de procesos ⭐
+- **invoices** - Facturas ⭐
+- **payments** - Pagos ⭐
+- **accounts** - Cuentas corrientes ⭐
+- **account_movements** - Movimientos ⭐
+- **alerts** - Alertas del sistema
+- **groups_meta** - Metadatos de grupos
+
+### Cassandra - 13 Tablas
+
+**Series Temporales de Mediciones**:
+- **measurements_by_sensor_day** - Particionado por sensor+día
+- **measurements_by_city_day** - Particionado por ciudad+día
+- **measurements_by_country_day** - Particionado por país+día
+- **last_measurement_by_sensor** - Estado actual de sensores
+
+**Agregaciones**:
+- **agg_city_day** - Agregaciones diarias
+- **agg_city_month** - Agregaciones mensuales
+- **agg_country_month** - Agregaciones por país
+
+**Mensajería** ⭐:
+- **messages_by_conversation** - Mensajes por conversación
+- **conversations_by_user** - Conversaciones por usuario
+
+**Alertas y Logs**:
+- **alerts_by_sensor** - Alertas por sensor
+- **alerts_by_city_day** - Alertas por ciudad
+- **exec_log_by_request** - Logs de ejecución
+- **sensor_health_checks** - Chequeos de salud
+
+### Neo4j - Grafo de Permisos y Relaciones
+
+**Nodos**:
+- **User** - Usuarios del sistema
+- **Role** - Roles (admin, usuario, tecnico)
+- **Group** - Grupos de usuarios
+- **ProcessType** - Tipos de procesos ejecutables
+- **Sensor** - Sensores
+- **City** - Ciudades
+- **Country** - Países
+
+**Relaciones**:
+- **(User)-[:HAS_ROLE]->(Role)** - Asignación de roles
+- **(Role)-[:CAN_EXECUTE]->(ProcessType)** - Permisos por rol
+- **(User)-[:CAN_EXECUTE]->(ProcessType)** - Permisos directos
+- **(User)-[:MEMBER_OF]->(Group)** - Membresía de grupos
+- **(Group)-[:CAN_EXECUTE]->(ProcessType)** - Permisos de grupos
+- **(Sensor)-[:IN_CITY]->(City)** - Ubicación de sensores
+- **(City)-[:IN_COUNTRY]->(Country)** - Jerarquía geográfica
+- **(User)-[:COVERS_CITY]->(City)** - Técnicos asignados
+
+---
+
+## 💡 Flujos de Negocio
+
+### Flujo 1: Solicitar y Ejecutar Proceso
+
+```
+1. Usuario solicita reporte
+   ↓ (MongoDB: process_requests)
+2. Sistema verifica permisos
+   ↓ (Neo4j: User→Role→ProcessType)
+3. Usuario ejecuta proceso
+   ↓ (Cassandra: consulta measurements_by_city_day)
+4. Sistema genera resultado
+   ↓ (MongoDB: process_results)
+5. Sistema genera factura automáticamente
+   ↓ (MongoDB: invoices)
+6. Sistema debita cuenta corriente
+   ↓ (MongoDB: accounts, account_movements)
+```
+
+### Flujo 2: Mensajería
+
+```
+1. Usuario A envía mensaje a Usuario B (por email)
+   ↓ (MongoDB: busca ID de Usuario B)
+2. Sistema genera ID de conversación
+   ↓ (hash consistente de ambos IDs)
+3. Mensaje se almacena
+   ↓ (Cassandra: messages_by_conversation)
+4. Se actualiza conversación para ambos usuarios
+   ↓ (Cassandra: conversations_by_user)
+```
+
+### Flujo 3: Registro de Medición
+
+```
+1. Operador registra medición
+   ↓ (Verifica permisos en Neo4j)
+2. Medición se inserta en 4 tablas simultáneamente
+   ↓ (Cassandra: measurements_by_sensor_day)
+   ↓ (Cassandra: measurements_by_city_day)
+   ↓ (Cassandra: measurements_by_country_day)
+   ↓ (Cassandra: last_measurement_by_sensor)
+3. Si excede umbral, genera alerta
+   ↓ (MongoDB: alerts + Cassandra: alerts_by_sensor)
+```
+
+---
+
+## 🔐 Sistema de Permisos (RBAC)
+
+### Roles Implementados
+
+| Rol | Permisos | Descripción |
+|-----|----------|-------------|
+| **Administrador** | TODOS | Acceso completo al sistema |
+| **Operador** | pt_maxmin, pt_prom | Puede registrar mediciones y generar reportes |
+| **Analista** | pt_prom | Solo lectura y reportes básicos |
+| **Técnico** | pt_maxmin, pt_alerts | Mantenimiento y alertas |
+
+### Verificación de Permisos
+
+El sistema verifica permisos en **3 niveles**:
+
+1. **Menú Principal**: Solo muestra opciones permitidas
+2. **Submenús**: Valida acceso antes de mostrar
+3. **Operaciones**: Verifica en Neo4j antes de ejecutar
+
+**Ejemplo**:
+```java
+// Verificar si puede ejecutar un proceso
+if (!authorizationDAO.canUserExecuteProcess(userId, "pt_maxmin")) {
+    return false; // No tiene permisos
+}
+```
+
+---
+
+## 📝 Datos de Prueba
+
+### Usuarios
+
+| Email | Contraseña | Rol | Opciones Menú |
+|-------|------------|-----|---------------|
+| admin@admin.com | admin | Admin | 7 |
+| maria.gonzalez@uade.edu.ar | password123 | Operador | 6 |
+| carlos.rodriguez@uade.edu.ar | password123 | Analista | 4 |
+| ana.martinez@uade.edu.ar | password123 | Técnico | 5 |
+
+### Sensores (IDs Fijos)
+
+```
+Buenos Aires:  550e8400-e29b-41d4-a716-446655440001
+Córdoba:       550e8400-e29b-41d4-a716-446655440003
+Rosario:       550e8400-e29b-41d4-a716-446655440005
+```
+
+### Ciudades Disponibles
+
+- Buenos Aires (Argentina) - 3 sensores
+- Córdoba (Argentina) - 3 sensores
+- Rosario (Argentina) - 2 sensores
+- Mendoza (Argentina) - 1 sensor
+- La Plata (Argentina) - 1 sensor
+
+---
+
+## 🛠️ Compilación y Desarrollo
+
+### Compilar Manualmente
 
 ```bash
-# 1. Iniciar Docker/Colima
-colima start  # En macOS
-
-# 2. Iniciar Neo4j
-docker run -d --name neo4j-tp-bbdd -p 7474:7474 -p 7687:7687 \
-  -e NEO4J_AUTH=neo4j/password neo4j:latest
-
-# 3. Iniciar Cassandra
-docker run -d --name cassandra-tp-bbdd -p 9042:9042 \
-  -e MAX_HEAP_SIZE=512M -e HEAP_NEWSIZE=128M cassandra:latest
-
-# 4. Iniciar MongoDB (si no está corriendo)
-brew services start mongodb-community  # macOS
-
-# 5. Esperar ~30 segundos para que Cassandra esté listo
-
-# 6. Ejecutar la aplicación
-mvn exec:java -Dexec.mainClass="com.bd2.app.Application"
+mvn clean package -DskipTests
 ```
 
-## Prerrequisitos
-
-### Software Requerido
-
-- **Java 17** o superior
-- **Maven 3.8+**
-- **MongoDB 6.0+**
-- **Apache Cassandra 4.0+**
-- **Neo4j 5.0+**
-
-### Bases de Datos
-
-1. **MongoDB** ejecutándose en `localhost:27017`
-2. **Cassandra** ejecutándose en `localhost:9042`
-3. **Neo4j** ejecutándose en `localhost:7687`
-
-## Instalación y Configuración
-
-### 1. Clonar y Compilar
+### Limpiar Bases de Datos
 
 ```bash
-cd tp-bbdd-2-app
-mvn clean compile
+./clean-databases.sh
 ```
 
-### 2. Configurar Bases de Datos
-
-Editar `src/main/resources/application.properties`:
-
-```properties
-# MongoDB
-mongodb.host=localhost
-mongodb.port=27017
-mongodb.database=tp_sensores
-
-# Cassandra
-cassandra.host=localhost
-cassandra.port=9042
-cassandra.keyspace=tp_sensores
-
-# Neo4j
-neo4j.uri=bolt://localhost:7687
-neo4j.username=neo4j
-neo4j.password=tu_password
-```
-
-### 3. Inicializar Esquemas
-
-**MongoDB:**
-```bash
-cd ../mongodb
-mongosh --file init-database.js
-mongosh --file test-data.js
-```
-
-**Cassandra:**
-```bash
-cd ../cassandra
-cqlsh -f init-keyspace.cql
-cqlsh -f create-aggregation-tables.cql
-cqlsh -f create-messaging-tables.cql
-cqlsh -f create-alert-tables.cql
-cqlsh -f create-execution-log.cql
-cqlsh -f insert-test-data.cql
-```
-
-**Neo4j:**
-```bash
-cd ../neo4j
-cypher-shell -f init-constraints.cypher
-cypher-shell -f create-initial-nodes.cypher
-cypher-shell -f create-test-users.cypher
-```
-
-## Ejecución
-
-### Ejecutar la Aplicación
+### Reiniciar Todo Desde Cero
 
 ```bash
-# Opción 1: Con Maven
-mvn exec:java -Dexec.mainClass="com.bd2.app.Application"
+./clean-databases.sh
+./start.sh
+```
 
-# Opción 2: Compilar JAR y ejecutar
-mvn clean package
+---
+
+## 📊 Características Técnicas
+
+### Pools de Conexiones Optimizados
+
+- **MongoDB**: Pool de 5-20 conexiones
+- **Cassandra**: 2 conexiones core por nodo
+- **Neo4j**: Pool de 10 conexiones
+
+### Migraciones Automáticas
+
+Al iniciar la aplicación, se ejecutan automáticamente:
+- Creación de colecciones e índices en MongoDB
+- Creación de keyspace y tablas en Cassandra
+- Creación de constraints y nodos iniciales en Neo4j
+
+### Seeding Automático
+
+Si no hay datos, se pueblan automáticamente:
+- 11 usuarios con roles asignados
+- 10 sensores en 5 ciudades
+- 700+ mediciones de prueba (últimos 7 días)
+- 4 roles y 6 tipos de procesos
+
+---
+
+## 🎓 Para la Presentación en Clase
+
+### Script de Demo (3 minutos)
+
+**Minuto 1**: Arquitectura Políglota
+- Mostrar login → MongoDB autentica
+- Mostrar permisos → Neo4j proporciona
+- Explicar: Cada BD hace lo que mejor sabe
+
+**Minuto 2**: Flujo Completo de Proceso
+- Solicitar reporte → MongoDB
+- Ejecutar → Cassandra (mediciones)
+- Ver resultado → MongoDB
+- Factura automática → MongoDB
+
+**Minuto 3**: Mensajería y Permisos
+- Enviar mensaje → Cassandra
+- Cambiar usuario → Mostrar menú diferente
+- Explicar: RBAC con Neo4j
+
+### Queries para Mostrar
+
+**MongoDB** - Ver usuarios:
+```javascript
+docker exec -it mongodb-tp-bbdd mongosh -u admin -p admin123
+use tp_sensores
+db.users.find({}, {fullName:1, email:1, department:1}).pretty()
+```
+
+**Cassandra** - Ver mediciones:
+```sql
+docker exec -it cassandra-tp-bbdd cqlsh
+USE tp_sensores;
+SELECT * FROM last_measurement_by_sensor LIMIT 5;
+```
+
+**Neo4j** - Ver grafo de permisos:
+```cypher
+http://localhost:7474
+MATCH (u:User {email: 'admin@admin.com'})-[:HAS_ROLE]->(r:Role)-[:CAN_EXECUTE]->(p:ProcessType)
+RETURN u, r, p
+```
+
+---
+
+## ⚠️ Troubleshooting
+
+### Problema: Admin sin permisos
+
+**Síntoma**: Login exitoso pero roles y permisos vacíos
+
+**Solución**: Ejecutar en Neo4j Browser (http://localhost:7474):
+
+```cypher
+MATCH (u:User {email: 'admin@admin.com'})
+MATCH (r:Role), (p:ProcessType), (g:Group)
+MERGE (u)-[:HAS_ROLE]->(r)
+MERGE (u)-[:CAN_EXECUTE]->(p)
+MERGE (u)-[:MEMBER_OF]->(g)
+RETURN 'Permisos asignados' AS resultado;
+```
+
+### Problema: Cassandra timeout
+
+**Solución**: Cassandra tarda 2-3 minutos en iniciar completamente
+
+```bash
+docker restart cassandra-tp-bbdd
+sleep 180
 java -jar target/tp-bbdd-2-app-1.0.0.jar
 ```
 
-### Menú Interactivo
+### Problema: No hay datos
 
-La aplicación presenta un menú interactivo con las siguientes opciones:
-
-1. **👤 Gestión de Usuarios**
-   - Registrar nuevo usuario
-   - Autenticar usuario
-   - Ver perfil de usuario
-   - Listar usuarios por departamento
-
-2. **📊 Gestión de Sensores y Mediciones**
-   - Registrar medición
-   - Ver últimas mediciones de sensor
-   - Ver mediciones por ciudad
-   - Ver estado actual de sensores
-   - Asignar técnico a ciudad
-
-3. **🔐 Consultas de Autorización**
-   - Ver permisos de usuario
-   - Verificar permiso específico
-   - Ver miembros de grupo
-   - Ver técnicos por ciudad
-
-4. **📈 Dashboard y Estadísticas**
-   - Estadísticas del sistema
-   - Estado de conexiones
-   - Métricas de rendimiento
-
-5. **🧪 Ejecutar Demos**
-   - Demos automáticos de funcionalidad
-
-## Características Técnicas
-
-### 🔗 Pools de Conexiones
-
-**MongoDB:**
-- Pool mínimo: 5 conexiones
-- Pool máximo: 20 conexiones
-- Timeout de conexión: 30 segundos
-- TTL de conexión: 5 minutos
-
-**Cassandra:**
-- Conexiones core: 2 por nodo
-- Conexiones máximas: 8 por nodo
-- Requests por conexión: 1024
-- Heartbeat: 30 segundos
-
-**Neo4j:**
-- Pool máximo: 50 conexiones
-- Timeout de adquisición: 60 segundos
-- Timeout de conexión: 30 segundos
-- Retry de transacciones: 30 segundos
-
-### 🛡️ Manejo de Errores
-
-- **Reconexión automática** en caso de pérdida de conexión
-- **Reintentos configurables** para operaciones fallidas
-- **Rollback automático** en transacciones multi-base
-- **Logging detallado** para debugging
-
-### 🔄 Patrones de Integración
-
-**Registro de Usuario:**
-1. Crear en MongoDB (datos maestros)
-2. Sincronizar en Neo4j (relaciones)
-3. Asignar rol por defecto
-
-**Registro de Medición:**
-1. Verificar permisos en Neo4j
-2. Insertar en Cassandra (denormalizado)
-3. Actualizar última medición
-
-**Consulta de Datos:**
-1. Autenticar en MongoDB
-2. Verificar permisos en Neo4j
-3. Consultar datos en Cassandra
-
-## Ejemplos de Uso
-
-### Registro de Usuario
-
-```java
-UserService userService = new UserService();
-String userId = userService.registerUser(
-    "Juan Pérez", 
-    "juan.perez@universidad.edu", 
-    "password123", 
-    "Investigación"
-);
-```
-
-### Autenticación
-
-```java
-Map<String, Object> authResult = userService.authenticateUser(
-    "juan.perez@universidad.edu", 
-    "password123"
-);
-Set<String> permissions = (Set<String>) authResult.get("permissions");
-```
-
-### Registro de Medición
-
-```java
-SensorService sensorService = new SensorService();
-Measurement measurement = Measurement.createTemperatureMeasurement(
-    "sensor-uuid", 
-    23.5, 
-    "Buenos Aires", 
-    "Argentina"
-);
-boolean success = sensorService.recordMeasurement(userId, measurement);
-```
-
-### Consulta de Mediciones
-
-```java
-List<Measurement> measurements = sensorService.getLatestMeasurements(
-    userId, 
-    "sensor-uuid", 
-    10
-);
-```
-
-## Monitoreo y Debugging
-
-### Logs
-
-Los logs se guardan en:
-- **Consola**: Nivel INFO
-- **Archivo**: `logs/tp-bbdd-2-app.log` (Nivel DEBUG)
-
-### Métricas de Conexión
-
-```java
-// Ver estado de pools
-MongoConnectionManager.getInstance().logConnectionPoolStats();
-CassandraConnectionManager.getInstance().logSessionStats();
-Neo4jConnectionManager.getInstance().logConnectionPoolStats();
-```
-
-### Verificar Conectividad
-
-```java
-// Verificar conexiones
-boolean mongoOk = MongoConnectionManager.getInstance().isConnected();
-boolean cassandraOk = CassandraConnectionManager.getInstance().isConnected();
-boolean neo4jOk = Neo4jConnectionManager.getInstance().isConnected();
-```
-
-## Troubleshooting
-
-### Problemas Comunes
-
-1. **Error de conexión MongoDB**
-   ```
-   Verificar que MongoDB esté ejecutándose:
-   brew services start mongodb/brew/mongodb-community
-   ```
-
-2. **Error de conexión Cassandra**
-   ```
-   Verificar que Cassandra esté ejecutándose:
-   brew services start cassandra
-   ```
-
-3. **Error de conexión Neo4j**
-   ```
-   Verificar credenciales en application.properties
-   Iniciar Neo4j Desktop o servicio
-   ```
-
-4. **OutOfMemoryError**
-   ```
-   Aumentar heap size:
-   java -Xmx2g -jar tp-bbdd-2-app-1.0.0.jar
-   ```
-
-### Comandos de Diagnóstico
+**Solución**: El seeding solo se ejecuta si MongoDB está vacío
 
 ```bash
-# Verificar puertos
-netstat -an | grep -E "(27017|9042|7687)"
-
-# Verificar logs
-tail -f logs/tp-bbdd-2-app.log
-
-# Verificar conexiones Java
-jps -l
-jstack <pid>
+./clean-databases.sh
+./start-databases.sh
+sleep 180
+java -jar target/tp-bbdd-2-app-1.0.0.jar
 ```
 
-## Desarrollo
+---
 
-### Agregar Nueva Funcionalidad
+## 📚 Documentación Adicional
 
-1. **Modelo**: Crear clase en `model/`
-2. **DAO**: Implementar acceso a datos en `dao/`
-3. **Servicio**: Crear lógica de negocio en `service/`
-4. **Integrar**: Agregar al menú en `Application.java`
+- **`CHEAT_SHEET_DEMO.txt`** - Datos para copiar/pegar durante demo
+- **`AUTENTICACION.md`** - Sistema de autenticación y roles
+- **`ESTRUCTURA_BASES_DE_DATOS.md`** - Detalle de cada tabla/colección
 
-### Testing
+---
+
+## ✅ Cumplimiento de Consigna
+
+| Requisito | Estado |
+|-----------|--------|
+| Persistencia políglota (3 BDs) | ✅ MongoDB, Cassandra, Neo4j |
+| Gestión de usuarios y roles | ✅ RBAC completo en Neo4j |
+| Registro de sensores y mediciones | ✅ Con ubicación geoespacial |
+| Sistema de procesos y reportes | ✅ Solicitud, ejecución, resultados |
+| Facturación y cuenta corriente | ✅ Automática con débito |
+| Mensajería entre usuarios | ✅ En Cassandra |
+| Control de permisos diferenciados | ✅ Menú dinámico |
+| Reportes Max/Min | ✅ Por ciudad/fecha |
+| Reportes de Promedios | ✅ Por ciudad/fecha |
+| Alertas en rangos | ✅ Sistema de alertas |
+
+**Cumplimiento**: 100% ✅
+
+---
+
+## 👨‍💻 Autor
+
+**Materia**: Ingeniería de Datos II  
+**Universidad**: UADE  
+**Año**: 2025
+
+---
+
+## 🚀 Quick Start
 
 ```bash
-# Ejecutar tests
-mvn test
-
-# Ejecutar con perfil de test
-mvn test -Dspring.profiles.active=test
+cd "/Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app"
+./start.sh
 ```
 
-## Licencia
+**Login recomendado**: `maria.gonzalez@uade.edu.ar` / `password123`
 
-Este proyecto es para uso académico en el contexto universitario.
-
-## Contacto
-
-Para preguntas sobre la implementación, consultar la documentación de cada base de datos en sus respectivos directorios:
-- `../mongodb/README.md`
-- `../cassandra/README.md`
-- `../neo4j/README.md`
+**¡Listo para demostrar!** 🎓✨

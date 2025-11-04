@@ -173,8 +173,20 @@ public class Application {
                     
                     System.out.println("\n✅ ¡Bienvenido, " + authResult.get("fullName") + "!");
                     System.out.println("📊 Departamento: " + authResult.get("department"));
-                    System.out.println("🎭 Roles: " + this.currentRoles);
-                    System.out.println("🔐 Permisos: " + this.currentPermissions);
+                    
+                    // Mostrar roles de forma más clara
+                    if (this.currentRoles.isEmpty()) {
+                        System.out.println("🎭 Roles: (sin roles en Neo4j - modo simplificado)");
+                    } else {
+                        System.out.println("🎭 Roles: " + this.currentRoles);
+                    }
+                    
+                    // Mostrar permisos de forma más clara
+                    if (this.currentPermissions.isEmpty()) {
+                        System.out.println("🔐 Permisos: (todos - modo simplificado)");
+                    } else {
+                        System.out.println("🔐 Permisos: " + this.currentPermissions);
+                    }
                     
                     return true;
                 } else {
@@ -676,21 +688,62 @@ public class Application {
             return;
         }
         
+        System.out.println("\n👤 REGISTRAR NUEVO USUARIO");
+        System.out.println("═".repeat(60));
+        
         System.out.print("Nombre completo: ");
         String fullName = scanner.nextLine();
+        
         System.out.print("Email: ");
         String email = scanner.nextLine();
+        
         System.out.print("Contraseña: ");
         String password = scanner.nextLine();
+        
         System.out.print("Departamento: ");
         String department = scanner.nextLine();
         
-        String userId = userService.registerUser(fullName, email, password, department);
-        if (userId != null) {
-            System.out.println("✅ Usuario registrado con ID: " + userId);
-        } else {
-            System.out.println("❌ Error registrando usuario");
+        // Seleccionar rol
+        System.out.println("\nSelecciona el rol:");
+        System.out.println("1. Administrador (acceso completo)");
+        System.out.println("2. Operador (gestión de sensores y mediciones)");
+        System.out.println("3. Analista (solo lectura)");
+        System.out.println("4. Técnico (mantenimiento)");
+        System.out.print("Opción (1-4): ");
+        
+        String roleId;
+        try {
+            int roleOption = Integer.parseInt(scanner.nextLine());
+            roleId = switch (roleOption) {
+                case 1 -> "role_admin";
+                case 2 -> "role_operator";
+                case 3 -> "role_analyst";
+                case 4 -> "role_technician";
+                default -> "role_operator"; // Por defecto
+            };
+        } catch (NumberFormatException e) {
+            roleId = "role_operator";
         }
+        
+        String userId = userService.registerUserWithRole(fullName, email, password, department, roleId);
+        if (userId != null) {
+            System.out.println("\n✅ Usuario registrado exitosamente!");
+            System.out.println("ID: " + userId);
+            System.out.println("Email: " + email);
+            System.out.println("Rol: " + getRoleName(roleId));
+        } else {
+            System.out.println("❌ Error registrando usuario (el email puede estar duplicado)");
+        }
+    }
+    
+    private String getRoleName(String roleId) {
+        return switch (roleId) {
+            case "role_admin" -> "Administrador";
+            case "role_operator" -> "Operador";
+            case "role_analyst" -> "Analista";
+            case "role_technician" -> "Técnico";
+            default -> roleId;
+        };
     }
     
     private void authenticateUser() {

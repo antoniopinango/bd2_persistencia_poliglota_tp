@@ -78,6 +78,57 @@ public class UserService {
     }
     
     /**
+     * Registra un nuevo usuario con rol específico (para admins)
+     */
+    public String registerUserWithRole(String fullName, String email, String password, String department, String roleId) {
+        try {
+            // 1. Verificar que el email no existe
+            if (userDAO.existsByEmail(email)) {
+                logger.warn("Intento de registro con email existente: {}", email);
+                return null;
+            }
+            
+            // 2. Crear usuario en MongoDB con roleId
+            User user = new User();
+            user.setId(UUID.randomUUID().toString());
+            user.setFullName(fullName);
+            user.setEmail(email);
+            user.setPasswordHash(password);
+            user.setStatus("activo");
+            user.setDepartment(department);
+            
+            String userId = userDAO.createUser(user);
+            
+            if (userId != null) {
+                // 3. Sincronizar en Neo4j
+                authorizationDAO.syncUserFromMongo(userId, email, fullName, "activo", department);
+                
+                // 4. Asignar el rol seleccionado en Neo4j
+                // Convertir roleId a nombre de rol de Neo4j
+                String neoRoleName = switch(roleId) {
+                    case "role_admin" -> "admin";
+                    case "role_operator" -> "usuario"; // En Neo4j se llama "usuario"
+                    case "role_analyst" -> "usuario";
+                    case "role_technician" -> "tecnico";
+                    default -> "usuario";
+                };
+                
+                // Asignar rol usando el ID del rol de Neo4j
+                authorizationDAO.assignRoleToUser(userId, "role_" + neoRoleName);
+                
+                logger.info("Usuario registrado con rol {}: {} ({})", roleId, fullName, email);
+                return userId;
+            }
+            
+            return null;
+            
+        } catch (Exception e) {
+            logger.error("Error registrando usuario con rol", e);
+            return null;
+        }
+    }
+    
+    /**
      * Autentica un usuario
      * - Verifica credenciales en MongoDB
      * - Obtiene permisos desde Neo4j

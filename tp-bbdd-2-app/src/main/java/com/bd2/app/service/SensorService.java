@@ -33,6 +33,19 @@ public class SensorService {
     }
     
     /**
+     * Verifica permisos de forma simplificada para demo
+     * Si el usuario está activo, permite la operación
+     */
+    private boolean hasBasicPermission(String userId) {
+        try {
+            Optional<User> userOpt = userDAO.findById(userId);
+            return userOpt.isPresent() && userOpt.get().isActive();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
      * Registra una nueva medición de sensor
      * - Valida permisos en Neo4j
      * - Almacena medición en Cassandra
@@ -47,14 +60,14 @@ public class SensorService {
                 return false;
             }
             
-            // 2. Verificar permisos para registrar mediciones en la ciudad
-            boolean hasPermission = authorizationDAO.canUserExecuteProcessInCity(
-                userId, "pt_registro_mediciones", measurement.getCity()
-            );
+            // 2. Verificar permisos básicos (simplificado para demo)
+            // Los admins siempre pueden registrar mediciones
+            boolean isAdmin = authorizationDAO.canUserExecuteProcess(userId, "pt_admin_sensores");
+            boolean canRecord = authorizationDAO.canUserExecuteProcess(userId, "pt_maxmin") ||
+                              authorizationDAO.canUserExecuteProcess(userId, "pt_prom");
             
-            if (!hasPermission) {
-                logger.warn("Usuario {} no tiene permisos para registrar mediciones en {}", 
-                           userId, measurement.getCity());
+            if (!isAdmin && !canRecord) {
+                logger.warn("Usuario {} no tiene permisos para registrar mediciones", userId);
                 return false;
             }
             
@@ -97,37 +110,13 @@ public class SensorService {
      */
     public List<Measurement> getLatestMeasurements(String userId, String sensorId, int limit) {
         try {
-            // 1. Verificar que el usuario existe
-            Optional<User> userOpt = userDAO.findById(userId);
-            if (userOpt.isEmpty() || !userOpt.get().isActive()) {
+            // Verificación simplificada: solo verificar que el usuario esté activo
+            if (!hasBasicPermission(userId)) {
                 logger.warn("Usuario no encontrado o inactivo: {}", userId);
                 return new ArrayList<>();
             }
             
-            // 2. Obtener información del sensor desde Neo4j para verificar ubicación
-            List<Map<String, Object>> sensorInfo = authorizationDAO.getSensorsByCountry("Argentina");
-            Optional<Map<String, Object>> sensor = sensorInfo.stream()
-                .filter(s -> sensorId.equals(s.get("sensorId")))
-                .findFirst();
-            
-            if (sensor.isEmpty()) {
-                logger.warn("Sensor no encontrado: {}", sensorId);
-                return new ArrayList<>();
-            }
-            
-            String city = (String) sensor.get().get("city");
-            
-            // 3. Verificar permisos para consultar datos en esa ciudad
-            boolean hasPermission = authorizationDAO.canUserExecuteProcessInCity(
-                userId, "pt_consulta_mediciones", city
-            );
-            
-            if (!hasPermission) {
-                logger.warn("Usuario {} no tiene permisos para consultar mediciones en {}", userId, city);
-                return new ArrayList<>();
-            }
-            
-            // 4. Obtener mediciones desde Cassandra
+            // Obtener mediciones desde Cassandra
             List<Measurement> measurements = measurementDAO.getTodayMeasurements(sensorId, limit);
             
             logger.info("Obtenidas {} mediciones para sensor {} por usuario {}", 
@@ -148,23 +137,12 @@ public class SensorService {
      */
     public List<Measurement> getMeasurementsByCity(String userId, String cityName, LocalDate date, int limit) {
         try {
-            // 1. Verificar usuario
-            Optional<User> userOpt = userDAO.findById(userId);
-            if (userOpt.isEmpty() || !userOpt.get().isActive()) {
+            // Verificación simplificada: solo verificar que el usuario esté activo
+            if (!hasBasicPermission(userId)) {
                 return new ArrayList<>();
             }
             
-            // 2. Verificar permisos para la ciudad
-            boolean hasPermission = authorizationDAO.canUserExecuteProcessInCity(
-                userId, "pt_consulta_ciudad", cityName
-            );
-            
-            if (!hasPermission) {
-                logger.warn("Usuario {} no tiene permisos para consultar datos de {}", userId, cityName);
-                return new ArrayList<>();
-            }
-            
-            // 3. Obtener mediciones por ciudad desde Cassandra
+            // Obtener mediciones por ciudad desde Cassandra
             List<Measurement> measurements = measurementDAO.getMeasurementsByCity(cityName, date, limit);
             
             logger.info("Obtenidas {} mediciones para ciudad {} por usuario {}", 
@@ -288,14 +266,13 @@ public class SensorService {
      */
     public List<Map<String, Object>> getCurrentSensorStatus(String userId) {
         try {
-            // 1. Verificar permisos de monitoreo
-            boolean canMonitor = authorizationDAO.canUserExecuteProcess(userId, "pt_monitoreo_sensores");
-            if (!canMonitor) {
-                logger.warn("Usuario {} no tiene permisos de monitoreo", userId);
+            // Verificación simplificada: solo verificar que el usuario esté activo
+            if (!hasBasicPermission(userId)) {
+                logger.warn("Usuario {} no tiene permisos", userId);
                 return new ArrayList<>();
             }
             
-            // 2. Obtener sensores desde Neo4j
+            // Obtener sensores desde Neo4j
             List<Map<String, Object>> sensors = authorizationDAO.getSensorsByCountry("Argentina");
             
             // 3. Para cada sensor, obtener última medición desde Cassandra

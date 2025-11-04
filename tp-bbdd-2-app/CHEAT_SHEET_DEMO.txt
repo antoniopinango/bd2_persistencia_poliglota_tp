@@ -127,28 +127,54 @@ Ver conversación con: maria.gonzalez@uade.edu.ar
 Opción: 2 (Gestión de Sensores)
 Opción: 1 (Crear nuevo sensor)
 
-Nombre del sensor: Laboratorio Principal
+Nombre del sensor: Sensor de Temperatura Principal
 Ciudad: Buenos Aires
 País: Argentina
-Tipo: [Enter para temperature_humidity]
+Tipo de sensor:
+1. Temperatura    ← Seleccionar este
+2. Humedad
+Selecciona: 1
 Latitud: -34.6037
 Longitud: -58.3816
 
 ✅ Sensor creado!
+Tipo: Temperatura
 ID: [se genera automáticamente]
 
 
-📊 REGISTRAR MEDICIÓN
+📊 REGISTRAR MEDICIÓN DE TEMPERATURA
 ═══════════════════════════════════════════════════════════════
 
 Opción: 2 (Gestión de Sensores)  
 Opción: 2 (Registrar medición)
 
 ID de sensor: 550e8400-e29b-41d4-a716-446655440001
-Temperatura: 23.5
-Humedad: 65.0
+Tipo de medición:
+1. Temperatura    ← Seleccionar
+2. Humedad
+Selecciona: 1
+Temperatura (°C): 23.5
 Ciudad: Buenos Aires
 País: Argentina
+
+✅ Medición registrada
+   Temperatura: 23.5°C
+
+
+📊 REGISTRAR MEDICIÓN DE HUMEDAD
+═══════════════════════════════════════════════════════════════
+
+ID de sensor: 550e8400-e29b-41d4-a716-446655440002
+Tipo de medición:
+1. Temperatura
+2. Humedad        ← Seleccionar
+Selecciona: 2
+Humedad (%): 65.0
+Ciudad: Buenos Aires
+País: Argentina
+
+✅ Medición registrada
+   Humedad: 65.0%
 
 
 📋 SOLICITAR REPORTE

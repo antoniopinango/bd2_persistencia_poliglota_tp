@@ -762,10 +762,17 @@ public class Application {
         System.out.print("País: ");
         String country = scanner.nextLine();
         
-        System.out.print("Tipo (temperature_humidity): ");
-        String type = scanner.nextLine();
-        if (type.trim().isEmpty()) {
-            type = "temperature_humidity";
+        System.out.println("\nTipo de sensor:");
+        System.out.println("1. Temperatura");
+        System.out.println("2. Humedad");
+        System.out.print("Selecciona (1 o 2): ");
+        
+        String type;
+        try {
+            int typeOption = Integer.parseInt(scanner.nextLine());
+            type = typeOption == 1 ? "temperature" : "humidity";
+        } catch (NumberFormatException e) {
+            type = "temperature"; // Por defecto
         }
         
         System.out.print("Latitud (ej: -34.6037): ");
@@ -779,6 +786,7 @@ public class Application {
         if (sensorId != null) {
             System.out.println("\n✅ Sensor creado exitosamente!");
             System.out.println("ID: " + sensorId);
+            System.out.println("Tipo: " + (type.equals("temperature") ? "Temperatura" : "Humedad"));
             System.out.println("💡 Ya puedes registrar mediciones con este sensor");
         } else {
             System.out.println("❌ Error creando sensor (verifica permisos)");
@@ -798,22 +806,52 @@ public class Application {
         
         System.out.print("ID de sensor: ");
         String sensorId = scanner.nextLine();
-        System.out.print("Temperatura: ");
-        Double temperature = Double.parseDouble(scanner.nextLine());
-        System.out.print("Humedad: ");
-        Double humidity = Double.parseDouble(scanner.nextLine());
+        
+        System.out.println("\nTipo de medición:");
+        System.out.println("1. Temperatura");
+        System.out.println("2. Humedad");
+        System.out.print("Selecciona (1 o 2): ");
+        
+        String type;
+        Double temperature = null;
+        Double humidity = null;
+        
+        try {
+            int typeOption = Integer.parseInt(scanner.nextLine());
+            
+            if (typeOption == 1) {
+                type = "temperature";
+                System.out.print("Temperatura (°C): ");
+                temperature = Double.parseDouble(scanner.nextLine());
+                humidity = 0.0; // Valor por defecto
+            } else {
+                type = "humidity";
+                System.out.print("Humedad (%): ");
+                humidity = Double.parseDouble(scanner.nextLine());
+                temperature = 0.0; // Valor por defecto
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Entrada inválida");
+            return;
+        }
+        
         System.out.print("Ciudad: ");
         String city = scanner.nextLine();
         System.out.print("País: ");
         String country = scanner.nextLine();
         
-        Measurement measurement = new Measurement(sensorId, temperature, humidity, "combinado", city, country);
+        Measurement measurement = new Measurement(sensorId, temperature, humidity, type, city, country);
         boolean recorded = sensorService.recordMeasurement(userId, measurement);
         
         if (recorded) {
             System.out.println("✅ Medición registrada exitosamente");
+            if (type.equals("temperature")) {
+                System.out.println("   Temperatura: " + temperature + "°C");
+            } else {
+                System.out.println("   Humedad: " + humidity + "%");
+            }
         } else {
-            System.out.println("❌ Error registrando medición (verifica permisos)");
+            System.out.println("❌ Error registrando medición");
         }
     }
     

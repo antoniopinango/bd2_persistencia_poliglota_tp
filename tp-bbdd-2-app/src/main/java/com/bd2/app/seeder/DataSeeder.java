@@ -321,7 +321,7 @@ public class DataSeeder {
         
         try {
             sensors.insertMany(sensorDocs);
-            logger.info("✓ {} sensores insertados", sensorDocs.size());
+            logger.info("✓ {} sensores insertados en MongoDB", sensorDocs.size());
         } catch (Exception e) {
             logger.warn("Error insertando sensores: {}", e.getMessage());
         }
@@ -477,21 +477,45 @@ public class DataSeeder {
                 );
             }
             
-            // Asignar sensores a ubicaciones
-            int cityIndex = 0;
-            String[] cities = cityCountryMap.keySet().toArray(new String[0]);
+            // Sincronizar sensores de MongoDB a Neo4j con toda la información
+            logger.info("Sincronizando sensores de MongoDB a Neo4j...");
+            MongoCollection<Document> mongoSensors = mongoDb.getCollection("sensors");
             
-            for (String sensorId : sensorIds) {
-                String city = cities[cityIndex % cities.length];
-                session.run(
-                    "MERGE (s:Sensor {id: $sensorId}) " +
-                    "WITH s " +
-                    "MATCH (c:City {name: $city}) " +
-                    "MERGE (s)-[:IN_CITY]->(c)",
-                    Map.of("sensorId", sensorId, "city", city)
+            for (Document sensorDoc : mongoSensors.find()) {
+                String sensorId = sensorDoc.getString("_id");
+                String name = sensorDoc.getString("name");
+                String type = sensorDoc.getString("type");
+                String status = sensorDoc.getString("status");
+                Date installDate = sensorDoc.getDate("installDate");
+                
+                // Obtener ubicación
+                Document location = sensorDoc.get("location", Document.class);
+                String city = location != null ? location.getString("city") : "Buenos Aires";
+                String country = location != null ? location.getString("country") : "Argentina";
+                
+                // Generar código único
+                String code = "SENSOR_" + city.toUpperCase().replaceAll(" ", "_") + "_" + 
+                             (sensorId.substring(sensorId.length() - 4));
+                
+                // Crear sensor en Neo4j con toda la información
+                session.run("""
+                    MERGE (s:Sensor {id: $sensorId})
+                    SET s.code = $code,
+                        s.name = $name,
+                        s.type = $type,
+                        s.state = $status,
+                        s.installDate = datetime($installDate)
+                    WITH s
+                    MERGE (c:City {name: $city})
+                    MERGE (s)-[:IN_CITY]->(c)
+                    """,
+                    Map.of("sensorId", sensorId, "code", code, "name", name, 
+                           "type", type, "status", status, "installDate", installDate.toInstant().toString(),
+                           "city", city)
                 );
-                cityIndex++;
             }
+            
+            logger.info("✓ {} sensores sincronizados en Neo4j", sensorIds.size());
             
             // Crear ProcessTypes adicionales si no existen
             session.run("""

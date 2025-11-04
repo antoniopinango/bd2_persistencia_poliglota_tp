@@ -235,8 +235,8 @@ public class MeasurementDAO {
             try {
                 sensorUuid = UUID.fromString(sensorId);
             } catch (IllegalArgumentException e) {
-                logger.debug("SensorId no es UUID válido, saltando: {}", sensorId);
-                return null; // No es error, simplemente no tiene mediciones en Cassandra
+                // Silenciosamente ignorar IDs que no son UUID (sensores de prueba)
+                return null;
             }
             
             ResultSet resultSet = session.execute(selectLastMeasurement.bind(sensorUuid));

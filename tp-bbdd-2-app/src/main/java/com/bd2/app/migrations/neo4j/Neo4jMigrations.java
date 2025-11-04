@@ -191,11 +191,12 @@ public class Neo4jMigrations {
                 MERGE (u)-[:HAS_ROLE]->(r)
                 """);
             
-            // Sensor de prueba
+            // Sensor de prueba con UUID válido
             session.run("""
-                MERGE (s:Sensor {id: 'sensor_test_001', code: 'TEMP_BA_001'})
-                SET s.type = 'temperatura',
-                    s.state = 'activo'
+                MERGE (s:Sensor {id: '550e8400-e29b-41d4-a716-446655440001', code: 'TEMP_BA_001'})
+                SET s.type = 'temperature',
+                    s.state = 'activo',
+                    s.name = 'Sensor de Prueba Buenos Aires'
                 """);
             
             // Ubicar sensor en Buenos Aires

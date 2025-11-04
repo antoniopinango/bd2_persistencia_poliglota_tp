@@ -944,17 +944,45 @@ public class Application {
         // Usar el ID del usuario autenticado actual
         String userId = (String) currentUser.get("userId");
         
-        List<Map<String, Object>> status = sensorService.getCurrentSensorStatus(userId);
-        System.out.println("📡 Estado de Sensores: " + status.size());
+        System.out.println("\n¿Deseas filtrar por ciudad? (s/n): ");
+        String filterResponse = scanner.nextLine().trim().toLowerCase();
         
-        status.forEach(sensor -> {
-            System.out.println("   - " + sensor.get("sensorCode") + 
-                             " (" + sensor.get("city") + ") - " + 
-                             sensor.get("sensorState"));
+        List<Map<String, Object>> status;
+        String cityFilter = null;
+        
+        if (filterResponse.equals("s") || filterResponse.equals("si") || filterResponse.equals("sí")) {
+            System.out.print("Ciudad: ");
+            cityFilter = scanner.nextLine().trim();
+            status = sensorService.getSensorStatusByCity(userId, cityFilter);
+        } else {
+            status = sensorService.getCurrentSensorStatus(userId);
+        }
+        
+        System.out.println("\n📡 ESTADO DE SENSORES" + 
+                          (cityFilter != null ? " - " + cityFilter : "") + 
+                          ": " + status.size());
+        System.out.println("═".repeat(70));
+        
+        if (status.isEmpty()) {
+            System.out.println("No hay sensores" + (cityFilter != null ? " en " + cityFilter : ""));
+            return;
+        }
+        
+        for (Map<String, Object> sensor : status) {
+            System.out.println("📡 " + sensor.get("sensorCode") + 
+                             " - " + sensor.get("city") + 
+                             " (" + sensor.get("sensorState") + ")");
+            
             if (sensor.get("lastTemperature") != null) {
-                System.out.println("     Última medición: T:" + sensor.get("lastTemperature") + "°C");
+                Double temp = (Double) sensor.get("lastTemperature");
+                Double hum = (Double) sensor.get("lastHumidity");
+                System.out.println("   Última medición: T:" + String.format("%.1f", temp) + "°C, H:" + String.format("%.1f", hum) + "%");
+                System.out.println("   Momento: " + sensor.get("lastMeasurementTime"));
+            } else {
+                System.out.println("   Estado: Sin mediciones registradas");
             }
-        });
+            System.out.println("─".repeat(70));
+        }
     }
     
     private void assignTechnician() {

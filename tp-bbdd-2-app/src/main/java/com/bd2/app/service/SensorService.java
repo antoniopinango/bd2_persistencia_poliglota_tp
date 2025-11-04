@@ -270,7 +270,7 @@ public class SensorService {
             // Obtener sensores desde Neo4j
             List<Map<String, Object>> sensors = authorizationDAO.getSensorsByCountry("Argentina");
             
-            // 3. Para cada sensor, obtener última medición desde Cassandra
+            // Para cada sensor, obtener última medición desde Cassandra
             List<Map<String, Object>> sensorStatus = new ArrayList<>();
             
             for (Map<String, Object> sensor : sensors) {
@@ -282,7 +282,6 @@ public class SensorService {
                     status.put("lastTemperature", lastMeasurement.getTemperature());
                     status.put("lastHumidity", lastMeasurement.getHumidity());
                     status.put("lastMeasurementTime", lastMeasurement.getTimestamp());
-                    status.put("measurementQuality", lastMeasurement.getQuality());
                 } else {
                     status.put("lastMeasurementTime", null);
                     status.put("status", "Sin datos");
@@ -292,6 +291,31 @@ public class SensorService {
             }
             
             return sensorStatus;
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo estado de sensores", e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Obtiene el estado de sensores filtrado por ciudad (NUEVO)
+     */
+    public List<Map<String, Object>> getSensorStatusByCity(String userId, String cityName) {
+        try {
+            // Verificación simplificada
+            if (!hasBasicPermission(userId)) {
+                logger.warn("Usuario {} no tiene permisos", userId);
+                return new ArrayList<>();
+            }
+            
+            // Obtener todos los sensores y filtrar por ciudad
+            List<Map<String, Object>> allSensors = getCurrentSensorStatus(userId);
+            
+            // Filtrar por ciudad
+            return allSensors.stream()
+                .filter(s -> cityName.equalsIgnoreCase((String) s.get("city")))
+                .toList();
             
         } catch (Exception e) {
             logger.error("Error obteniendo estado de sensores", e);

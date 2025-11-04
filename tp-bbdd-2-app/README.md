@@ -94,6 +94,10 @@ Contraseña: admin
 - Listado por departamento
 
 ### 2. 📊 Gestión de Sensores y Mediciones
+- **Creación de sensores** (solo admins) ⭐
+  - Se guarda en MongoDB
+  - Se sincroniza automáticamente a Neo4j
+  - Código único generado automáticamente
 - Registro de mediciones (temperatura y humedad)
 - Consulta de mediciones por sensor
 - Consulta de mediciones por ciudad

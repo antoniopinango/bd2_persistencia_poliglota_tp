@@ -121,11 +121,28 @@ Mensaje: Carlos, necesito el reporte de temperaturas de hoy
 Ver conversación con: maria.gonzalez@uade.edu.ar
 
 
-📊 REGISTRAR MEDICIÓN
+🆕 CREAR NUEVO SENSOR (Solo Admins)
 ═══════════════════════════════════════════════════════════════
 
 Opción: 2 (Gestión de Sensores)
-Opción: 1 (Registrar medición)
+Opción: 1 (Crear nuevo sensor)
+
+Nombre del sensor: Laboratorio Principal
+Ciudad: Buenos Aires
+País: Argentina
+Tipo: [Enter para temperature_humidity]
+Latitud: -34.6037
+Longitud: -58.3816
+
+✅ Sensor creado!
+ID: [se genera automáticamente]
+
+
+📊 REGISTRAR MEDICIÓN
+═══════════════════════════════════════════════════════════════
+
+Opción: 2 (Gestión de Sensores)  
+Opción: 2 (Registrar medición)
 
 ID de sensor: 550e8400-e29b-41d4-a716-446655440001
 Temperatura: 23.5

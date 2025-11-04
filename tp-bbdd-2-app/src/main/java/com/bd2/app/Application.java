@@ -444,6 +444,13 @@ public class Application {
         Map<Integer, String> menuOptions = new HashMap<>();
         int optionNumber = 1;
         
+        // Crear sensor - Solo admins
+        if (isAdmin() || hasPermission("pt_admin_sensores")) {
+            System.out.println(optionNumber + ". Crear nuevo sensor");
+            menuOptions.put(optionNumber, "create");
+            optionNumber++;
+        }
+        
         // Registrar medición - Solo operadores y admins
         if (hasPermission("pt_maxmin") || hasPermission("pt_prom") || isAdmin()) {
             System.out.println(optionNumber + ". Registrar medición");
@@ -486,6 +493,7 @@ public class Application {
             }
             
             switch (selectedOption) {
+                case "create" -> createNewSensor();
                 case "record" -> recordMeasurement();
                 case "view_sensor" -> viewSensorMeasurements();
                 case "view_city" -> viewCityMeasurements();
@@ -730,6 +738,51 @@ public class Application {
         System.out.println("👥 Usuarios en " + department + ": " + users.size());
         users.forEach(user -> 
             System.out.println("   - " + user.getFullName() + " (" + user.getEmail() + ")"));
+    }
+    
+    private void createNewSensor() {
+        // Verificar permisos de admin
+        if (!isAdmin() && !hasPermission("pt_admin_sensores")) {
+            System.out.println("❌ No tienes permisos para crear sensores.");
+            System.out.println("💡 Solo los administradores pueden crear sensores.");
+            return;
+        }
+        
+        String userId = (String) currentUser.get("userId");
+        
+        System.out.println("\n🆕 CREAR NUEVO SENSOR");
+        System.out.println("═".repeat(60));
+        
+        System.out.print("Nombre del sensor: ");
+        String name = scanner.nextLine();
+        
+        System.out.print("Ciudad: ");
+        String city = scanner.nextLine();
+        
+        System.out.print("País: ");
+        String country = scanner.nextLine();
+        
+        System.out.print("Tipo (temperature_humidity): ");
+        String type = scanner.nextLine();
+        if (type.trim().isEmpty()) {
+            type = "temperature_humidity";
+        }
+        
+        System.out.print("Latitud (ej: -34.6037): ");
+        double latitude = Double.parseDouble(scanner.nextLine());
+        
+        System.out.print("Longitud (ej: -58.3816): ");
+        double longitude = Double.parseDouble(scanner.nextLine());
+        
+        String sensorId = sensorService.createSensor(userId, name, city, country, type, latitude, longitude);
+        
+        if (sensorId != null) {
+            System.out.println("\n✅ Sensor creado exitosamente!");
+            System.out.println("ID: " + sensorId);
+            System.out.println("💡 Ya puedes registrar mediciones con este sensor");
+        } else {
+            System.out.println("❌ Error creando sensor (verifica permisos)");
+        }
     }
     
     private void recordMeasurement() {

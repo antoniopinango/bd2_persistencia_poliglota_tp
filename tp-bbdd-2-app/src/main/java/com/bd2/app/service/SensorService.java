@@ -6,6 +6,7 @@ import com.bd2.app.dao.UserDAO;
 import com.bd2.app.model.Measurement;
 import com.bd2.app.model.Sensor;
 import com.bd2.app.model.User;
+import org.bson.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -356,6 +357,82 @@ public class SensorService {
         } catch (Exception e) {
             logger.error("Error obteniendo estadísticas del dashboard", e);
             return new HashMap<>();
+        }
+    }
+    
+    /**
+     * Crea un nuevo sensor (SIMPLE)
+     */
+    public String createSensor(String userId, String name, String city, String country, 
+                               String type, double latitude, double longitude) {
+        try {
+            // Verificar permisos (solo admins pueden crear sensores)
+            if (!authorizationDAO.canUserExecuteProcess(userId, "pt_admin_sensores")) {
+                logger.warn("Usuario {} no tiene permisos para crear sensores", userId);
+                return null;
+            }
+            
+            // Crear sensor en MongoDB
+            String sensorId = UUID.randomUUID().toString();
+            String code = "SENSOR_" + city.toUpperCase().replaceAll(" ", "_") + "_" + 
+                         System.currentTimeMillis() % 10000;
+            
+            com.bd2.app.database.MongoConnectionManager mongoManager = 
+                com.bd2.app.database.MongoConnectionManager.getInstance();
+            com.mongodb.client.MongoDatabase db = mongoManager.getDatabase();
+            
+            Document sensor = new Document("_id", sensorId)
+                .append("name", name)
+                .append("code", code)
+                .append("type", type)
+                .append("location", new Document()
+                    .append("city", city)
+                    .append("country", country)
+                    .append("coordinates", new Document()
+                        .append("latitude", latitude)
+                        .append("longitude", longitude)))
+                .append("status", "active")
+                .append("installDate", new java.util.Date())
+                .append("lastMaintenance", new java.util.Date())
+                .append("ownerId", userId);
+            
+            db.getCollection("sensors").insertOne(sensor);
+            
+            // Crear sensor en Neo4j
+            syncSensorToNeo4j(sensorId, code, type, city);
+            
+            logger.info("Sensor {} creado exitosamente en {} por usuario {}", code, city, userId);
+            return sensorId;
+            
+        } catch (Exception e) {
+            logger.error("Error creando sensor", e);
+            return null;
+        }
+    }
+    
+    /**
+     * Sincroniza sensor a Neo4j
+     */
+    private void syncSensorToNeo4j(String sensorId, String code, String type, String city) {
+        try {
+            // Crear nodo Sensor y relacionarlo con City
+            org.neo4j.driver.Session session = com.bd2.app.database.Neo4jConnectionManager
+                .getInstance().createSession(org.neo4j.driver.AccessMode.WRITE);
+            
+            session.run(
+                "MERGE (s:Sensor {id: $sensorId}) " +
+                "SET s.code = $code, s.type = $type, s.state = 'activo' " +
+                "WITH s " +
+                "MERGE (c:City {name: $city}) " +
+                "MERGE (s)-[:IN_CITY]->(c)",
+                org.neo4j.driver.Values.parameters("sensorId", sensorId, "code", code, "type", type, "city", city)
+            );
+            
+            session.close();
+            logger.debug("Sensor {} sincronizado en Neo4j", code);
+            
+        } catch (Exception e) {
+            logger.warn("Error sincronizando sensor en Neo4j: {}", e.getMessage());
         }
     }
 }

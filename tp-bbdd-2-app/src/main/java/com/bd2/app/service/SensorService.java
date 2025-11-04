@@ -60,14 +60,9 @@ public class SensorService {
                 return false;
             }
             
-            // 2. Verificar permisos básicos (simplificado para demo)
-            // Los admins siempre pueden registrar mediciones
-            boolean isAdmin = authorizationDAO.canUserExecuteProcess(userId, "pt_admin_sensores");
-            boolean canRecord = authorizationDAO.canUserExecuteProcess(userId, "pt_maxmin") ||
-                              authorizationDAO.canUserExecuteProcess(userId, "pt_prom");
-            
-            if (!isAdmin && !canRecord) {
-                logger.warn("Usuario {} no tiene permisos para registrar mediciones", userId);
+            // 2. Verificación simplificada: cualquier usuario activo puede registrar
+            if (!hasBasicPermission(userId)) {
+                logger.warn("Usuario no encontrado o inactivo: {}", userId);
                 return false;
             }
             
@@ -343,9 +338,9 @@ public class SensorService {
     public String createSensor(String userId, String name, String city, String country, 
                                String type, double latitude, double longitude) {
         try {
-            // Verificar permisos (solo admins pueden crear sensores)
-            if (!authorizationDAO.canUserExecuteProcess(userId, "pt_admin_sensores")) {
-                logger.warn("Usuario {} no tiene permisos para crear sensores", userId);
+            // Verificación simplificada: solo verificar que el usuario esté activo
+            if (!hasBasicPermission(userId)) {
+                logger.warn("Usuario no encontrado o inactivo: {}", userId);
                 return null;
             }
             

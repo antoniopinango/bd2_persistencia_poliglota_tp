@@ -19,4 +19,5 @@
 /Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app/src/main/java/com/bd2/app/dao/AuthorizationDAO.java
 /Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app/src/main/java/com/bd2/app/database/Neo4jConnectionManager.java
 /Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app/src/main/java/com/bd2/app/service/UserService.java
+/Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app/src/main/java/com/bd2/app/service/AlertService.java
 /Users/apinango/Desktop/Personal/WorkSpaceUADE/ING. DE DATOS 2/tp-bbdd-2-app/tp-bbdd-2-app/src/main/java/com/bd2/app/migrations/cassandra/CassandraMigrations.java

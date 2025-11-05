@@ -13,6 +13,7 @@ import com.bd2.app.service.UserService;
 import com.bd2.app.service.ProcessService;
 import com.bd2.app.service.InvoiceService;
 import com.bd2.app.service.MessageService;
+import com.bd2.app.service.AlertService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,7 @@ public class Application {
     private ProcessService processService;
     private InvoiceService invoiceService;
     private MessageService messageService;
+    private AlertService alertService;
     private final Scanner scanner;
     
     // Usuario autenticado
@@ -50,6 +52,7 @@ public class Application {
         this.processService = new ProcessService();
         this.invoiceService = new InvoiceService();
         this.messageService = new MessageService();
+        this.alertService = new AlertService();
         logger.info("Servicios inicializados correctamente");
     }
     
@@ -331,12 +334,17 @@ public class Application {
             menuOptions.put(optionNumber, "invoices");
             optionNumber++;
             
-            // 6. Dashboard y Estadísticas - Todos pueden ver
+            // 6. Alertas - Todos pueden ver
+            System.out.println(optionNumber + ". 🚨 Ver Alertas Activas");
+            menuOptions.put(optionNumber, "alerts");
+            optionNumber++;
+            
+            // 7. Dashboard y Estadísticas - Todos pueden ver
             System.out.println(optionNumber + ". 📈 Dashboard y Estadísticas");
             menuOptions.put(optionNumber, "dashboard");
             optionNumber++;
             
-            // 7. Información del Sistema - Todos pueden ver
+            // 8. Información del Sistema - Todos pueden ver
             System.out.println(optionNumber + ". 🔧 Información del Sistema");
             menuOptions.put(optionNumber, "system");
             optionNumber++;
@@ -368,6 +376,7 @@ public class Application {
                     case "processes" -> showProcessMenu();
                     case "messages" -> showMessageMenu();
                     case "invoices" -> showInvoiceMenu();
+                    case "alerts" -> showAlertsMenu();
                     case "dashboard" -> showDashboard();
                     case "system" -> showSystemInfo();
                     default -> System.out.println("❌ Opción inválida. Intenta de nuevo.");
@@ -906,14 +915,23 @@ public class Application {
         boolean recorded = sensorService.recordMeasurement(userId, measurement);
         
         if (recorded) {
+            // Verificar umbrales y generar alertas si es necesario
+            alertService.checkThresholdsAndAlert(sensorId, sensor.getCity(), temperature, humidity, type);
+            
             System.out.println("\n✅ Medición registrada exitosamente");
             System.out.println("Sensor: " + sensor.getCode());
             System.out.println("Ubicación: " + sensor.getCity() + ", " + sensor.getCountry());
             if (type.equals("temperature") || temperature > 0) {
                 System.out.println("Temperatura: " + temperature + "°C");
+                if (temperature > 30 || temperature < 10) {
+                    System.out.println("⚠️  Alerta generada por temperatura fuera de rango");
+                }
             }
             if (type.equals("humidity") || humidity > 0) {
                 System.out.println("Humedad: " + humidity + "%");
+                if (humidity > 80 || humidity < 30) {
+                    System.out.println("⚠️  Alerta generada por humedad fuera de rango");
+                }
             }
         } else {
             System.out.println("❌ Error registrando medición");
@@ -1431,6 +1449,76 @@ public class Application {
             System.out.println("✅ Factura generada: " + invoiceId);
         } else {
             System.out.println("❌ Error generando factura");
+        }
+    }
+    
+    // ============================================
+    // IMPLEMENTACIÓN DE ALERTAS
+    // ============================================
+    
+    private void showAlertsMenu() {
+        System.out.println("\n🚨 === ALERTAS DEL SISTEMA ===");
+        System.out.println("1. Ver alertas activas");
+        System.out.println("2. Ver alertas por ciudad");
+        System.out.println("3. Resolver alerta");
+        System.out.println("0. Volver al menú principal");
+        
+        System.out.print("Selecciona una opción: ");
+        try {
+            int option = Integer.parseInt(scanner.nextLine());
+            
+            switch (option) {
+                case 1 -> viewActiveAlerts(null);
+                case 2 -> viewAlertsByCity();
+                case 3 -> resolveAlert();
+                case 0 -> { /* Volver */ }
+                default -> System.out.println("❌ Opción inválida.");
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("❌ Por favor ingresa un número válido.");
+        }
+    }
+    
+    private void viewActiveAlerts(String city) {
+        List<Map<String, Object>> alerts = alertService.getActiveAlerts(city);
+        
+        System.out.println("\n🚨 ALERTAS ACTIVAS" + 
+                          (city != null ? " - " + city : "") + 
+                          ": " + alerts.size());
+        System.out.println("═".repeat(70));
+        
+        if (alerts.isEmpty()) {
+            System.out.println("✅ No hay alertas activas" + (city != null ? " en " + city : ""));
+            return;
+        }
+        
+        for (Map<String, Object> alert : alerts) {
+            System.out.println("🚨 " + alert.get("description"));
+            System.out.println("   ID Alerta: " + alert.get("alertId"));
+            System.out.println("   Sensor: " + alert.get("sensorId"));
+            System.out.println("   Ciudad: " + alert.get("city"));
+            System.out.println("   Fecha: " + alert.get("openedAt"));
+            System.out.println("   Severidad: " + alert.get("severity"));
+            System.out.println("─".repeat(70));
+        }
+    }
+    
+    private void viewAlertsByCity() {
+        System.out.print("Ciudad: ");
+        String city = scanner.nextLine().trim();
+        viewActiveAlerts(city);
+    }
+    
+    private void resolveAlert() {
+        System.out.print("ID de la alerta a resolver: ");
+        String alertId = scanner.nextLine().trim();
+        
+        boolean resolved = alertService.resolveAlert(alertId);
+        
+        if (resolved) {
+            System.out.println("✅ Alerta resuelta exitosamente");
+        } else {
+            System.out.println("❌ Error resolviendo alerta");
         }
     }
     

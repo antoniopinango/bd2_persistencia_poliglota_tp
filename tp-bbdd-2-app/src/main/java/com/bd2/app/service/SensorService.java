@@ -180,10 +180,9 @@ public class SensorService {
      */
     public boolean assignTechnicianToCity(String adminUserId, String technicianId, String cityName) {
         try {
-            // 1. Verificar que el admin tiene permisos
-            boolean isAdmin = authorizationDAO.canUserExecuteProcess(adminUserId, "pt_admin_usuarios");
-            if (!isAdmin) {
-                logger.warn("Usuario {} no tiene permisos administrativos", adminUserId);
+            // 1. Verificar que el admin está activo (simplificado)
+            if (!hasBasicPermission(adminUserId)) {
+                logger.warn("Usuario admin no encontrado o inactivo: {}", adminUserId);
                 return false;
             }
             

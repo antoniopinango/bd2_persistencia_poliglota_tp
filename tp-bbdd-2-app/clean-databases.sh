@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Script para limpiar todas las bases de datos
+
 # Script para limpiar las bases de datos
 # Ejecutar este script cuando necesites resetear los datos
 

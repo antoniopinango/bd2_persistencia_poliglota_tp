@@ -191,19 +191,8 @@ public class Neo4jMigrations {
                 MERGE (u)-[:HAS_ROLE]->(r)
                 """);
             
-            // Sensor de prueba con UUID válido
-            session.run("""
-                MERGE (s:Sensor {id: '550e8400-e29b-41d4-a716-446655440001', code: 'TEMP_BA_001'})
-                SET s.type = 'temperature',
-                    s.state = 'activo',
-                    s.name = 'Sensor de Prueba Buenos Aires'
-                """);
-            
-            // Ubicar sensor en Buenos Aires
-            session.run("""
-                MATCH (s:Sensor {code: 'TEMP_BA_001'}), (c:City {name: 'Buenos Aires'})
-                MERGE (s)-[:IN_CITY]->(c)
-                """);
+            // Nota: Los sensores se sincronizan desde MongoDB en el DataSeeder
+            // Ya no creamos sensores de prueba aquí para evitar IDs inválidos
             
             logger.info("Datos de prueba insertados en Neo4j");
             

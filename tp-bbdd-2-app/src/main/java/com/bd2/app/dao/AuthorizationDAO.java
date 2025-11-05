@@ -239,6 +239,40 @@ public class AuthorizationDAO {
     }
     
     /**
+     * Obtiene sensores por ciudad
+     */
+    public List<Map<String, Object>> getSensorsByCity(String cityName) {
+        String query = """
+            MATCH (s:Sensor)-[:IN_CITY]->(c:City {name: $cityName})
+            RETURN s.id AS sensorId, s.code AS sensorCode, s.type AS sensorType, 
+                   s.state AS sensorState, c.name AS city
+            ORDER BY s.code
+            """;
+        
+        try (Session session = connectionManager.createSession(AccessMode.READ)) {
+            Result result = session.run(query, Values.parameters("cityName", cityName));
+            
+            List<Map<String, Object>> sensors = new ArrayList<>();
+            while (result.hasNext()) {
+                org.neo4j.driver.Record record = result.next();
+                Map<String, Object> sensor = new HashMap<>();
+                sensor.put("sensorId", record.get("sensorId").asString());
+                sensor.put("sensorCode", record.get("sensorCode").asString());
+                sensor.put("sensorType", record.get("sensorType").asString());
+                sensor.put("sensorState", record.get("sensorState").asString());
+                sensor.put("city", record.get("city").asString());
+                sensors.add(sensor);
+            }
+            
+            return sensors;
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo sensores por ciudad: {}", cityName, e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
      * Sincroniza un usuario desde MongoDB a Neo4j
      */
     public boolean syncUserFromMongo(String userId, String email, String fullName, String status, String department) {

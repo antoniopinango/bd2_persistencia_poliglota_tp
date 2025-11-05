@@ -609,6 +609,5 @@ Ciudad está en un país
 
 ---
 
-*Documento generado automáticamente - TP BBDD 2 - Persistencia Políglota*
 
 

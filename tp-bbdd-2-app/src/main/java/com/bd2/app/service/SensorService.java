@@ -345,6 +345,105 @@ public class SensorService {
     }
     
     /**
+     * Obtiene el estado de sensores con filtros opcionales por ciudad y rango de fechas
+     */
+    public List<Map<String, Object>> getSensorStatusWithFilters(
+            String userId, String cityName, LocalDate startDate, LocalDate endDate) {
+        try {
+            // Verificación simplificada
+            if (!hasBasicPermission(userId)) {
+                logger.warn("Usuario {} no tiene permisos", userId);
+                return new ArrayList<>();
+            }
+            
+            // Obtener sensores desde Neo4j
+            List<Map<String, Object>> sensors;
+            if (cityName != null && !cityName.trim().isEmpty()) {
+                sensors = authorizationDAO.getSensorsByCity(cityName);
+            } else {
+                sensors = authorizationDAO.getSensorsByCountry("Argentina");
+            }
+            
+            // Para cada sensor, obtener mediciones en el rango de fechas
+            List<Map<String, Object>> sensorStatus = new ArrayList<>();
+            
+            for (Map<String, Object> sensor : sensors) {
+                String sensorId = (String) sensor.get("sensorId");
+                Map<String, Object> status = new HashMap<>(sensor);
+                
+                // Si hay rango de fechas, obtener mediciones en ese rango
+                if (startDate != null && endDate != null) {
+                    List<Measurement> measurements = measurementDAO.getMeasurementsByDateRange(
+                        sensorId, startDate, endDate, 1000
+                    );
+                    
+                    if (!measurements.isEmpty()) {
+                        // Calcular estadísticas del rango
+                        double maxTemp = measurements.stream()
+                            .mapToDouble(Measurement::getTemperature)
+                            .max().orElse(0.0);
+                        double minTemp = measurements.stream()
+                            .mapToDouble(Measurement::getTemperature)
+                            .min().orElse(0.0);
+                        double avgTemp = measurements.stream()
+                            .mapToDouble(Measurement::getTemperature)
+                            .average().orElse(0.0);
+                        double maxHum = measurements.stream()
+                            .mapToDouble(Measurement::getHumidity)
+                            .max().orElse(0.0);
+                        double minHum = measurements.stream()
+                            .mapToDouble(Measurement::getHumidity)
+                            .min().orElse(0.0);
+                        double avgHum = measurements.stream()
+                            .mapToDouble(Measurement::getHumidity)
+                            .average().orElse(0.0);
+                        
+                        // Última medición del rango
+                        Measurement lastMeasurement = measurements.get(measurements.size() - 1);
+                        
+                        status.put("lastTemperature", lastMeasurement.getTemperature());
+                        status.put("lastHumidity", lastMeasurement.getHumidity());
+                        status.put("lastMeasurementTime", lastMeasurement.getTimestamp());
+                        
+                        // Estadísticas del rango
+                        status.put("rangeStartDate", startDate);
+                        status.put("rangeEndDate", endDate);
+                        status.put("measurementCount", measurements.size());
+                        status.put("maxTemperature", maxTemp);
+                        status.put("minTemperature", minTemp);
+                        status.put("avgTemperature", avgTemp);
+                        status.put("maxHumidity", maxHum);
+                        status.put("minHumidity", minHum);
+                        status.put("avgHumidity", avgHum);
+                    } else {
+                        status.put("lastMeasurementTime", null);
+                        status.put("status", "Sin mediciones en el rango de fechas");
+                    }
+                } else {
+                    // Sin rango de fechas, obtener última medición
+                    Measurement lastMeasurement = measurementDAO.getLastMeasurement(sensorId);
+                    if (lastMeasurement != null) {
+                        status.put("lastTemperature", lastMeasurement.getTemperature());
+                        status.put("lastHumidity", lastMeasurement.getHumidity());
+                        status.put("lastMeasurementTime", lastMeasurement.getTimestamp());
+                    } else {
+                        status.put("lastMeasurementTime", null);
+                        status.put("status", "Sin mediciones registradas");
+                    }
+                }
+                
+                sensorStatus.add(status);
+            }
+            
+            return sensorStatus;
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo estado de sensores con filtros", e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
      * Sincroniza información de ubicación del sensor en Neo4j
      */
     private void syncSensorLocationIfNeeded(Measurement measurement) {
@@ -359,16 +458,17 @@ public class SensorService {
     
     /**
      * Obtiene estadísticas del dashboard
+     * Modo simplificado: permite acceso a todos los usuarios autenticados
      */
     public Map<String, Object> getDashboardStats(String userId) {
         try {
-            // Verificar permisos de administrador
-            boolean isAdmin = authorizationDAO.canUserExecuteProcess(userId, "pt_dashboard_admin");
-            if (!isAdmin) {
-                logger.warn("Usuario {} no tiene permisos de dashboard", userId);
+            // Verificar que el usuario existe y está activo
+            if (!hasBasicPermission(userId)) {
+                logger.warn("Usuario {} no está activo", userId);
                 return new HashMap<>();
             }
             
+            // En modo demo, permitimos acceso al dashboard a todos los usuarios autenticados
             return authorizationDAO.getDashboardInfo();
             
         } catch (Exception e) {

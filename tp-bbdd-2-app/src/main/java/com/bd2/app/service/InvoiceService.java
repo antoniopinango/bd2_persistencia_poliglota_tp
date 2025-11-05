@@ -190,5 +190,178 @@ public class InvoiceService {
             return 0.0;
         }
     }
+    
+    /**
+     * Obtiene facturas pendientes de un usuario
+     */
+    public List<Map<String, Object>> getPendingInvoices(String userId) {
+        try {
+            List<Map<String, Object>> invoices = new ArrayList<>();
+            
+            for (Document doc : mongoDb.getCollection("invoices")
+                    .find(new Document("userId", userId)
+                        .append("status", "pendiente"))
+                    .sort(new Document("issuedAt", 1))) {
+                
+                Map<String, Object> invoice = new HashMap<>();
+                invoice.put("invoiceId", doc.getString("_id"));
+                invoice.put("processId", doc.getString("processId"));
+                invoice.put("amount", doc.getDouble("amount"));
+                invoice.put("issuedAt", doc.getDate("issuedAt"));
+                
+                invoices.add(invoice);
+            }
+            
+            return invoices;
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo facturas pendientes", e);
+            return new ArrayList<>();
+        }
+    }
+    
+    /**
+     * Paga una factura pendiente (verifica saldo primero)
+     */
+    public boolean payInvoice(String invoiceId, String userId) {
+        try {
+            // Obtener factura
+            Document invoice = mongoDb.getCollection("invoices")
+                .find(new Document("_id", invoiceId)
+                    .append("userId", userId)
+                    .append("status", "pendiente"))
+                .first();
+            
+            if (invoice == null) {
+                logger.warn("Factura no encontrada o ya pagada: {}", invoiceId);
+                return false;
+            }
+            
+            Double amount = invoice.getDouble("amount");
+            Double balance = getAccountBalance(userId);
+            
+            // Verificar saldo suficiente
+            if (balance < amount) {
+                logger.warn("Saldo insuficiente. Saldo: ${}, Monto: ${}", balance, amount);
+                return false;
+            }
+            
+            // Procesar pago
+            boolean success = processPayment(invoiceId, amount);
+            
+            if (success) {
+                // Actualizar saldo de cuenta corriente
+                debitFromAccount(userId, amount);
+                logger.info("Factura {} pagada exitosamente", invoiceId);
+            }
+            
+            return success;
+            
+        } catch (Exception e) {
+            logger.error("Error pagando factura", e);
+            return false;
+        }
+    }
+    
+    /**
+     * Paga todas las facturas pendientes (verifica saldo total primero)
+     */
+    public int payAllPendingInvoices(String userId) {
+        try {
+            List<Map<String, Object>> pending = getPendingInvoices(userId);
+            
+            if (pending.isEmpty()) {
+                return 0;
+            }
+            
+            // Calcular total
+            double totalAmount = pending.stream()
+                .mapToDouble(inv -> (Double) inv.get("amount"))
+                .sum();
+            
+            Double balance = getAccountBalance(userId);
+            
+            // Verificar saldo suficiente
+            if (balance < totalAmount) {
+                logger.warn("Saldo insuficiente para pagar todas. Saldo: ${}, Total: ${}", balance, totalAmount);
+                return -1; // -1 indica saldo insuficiente
+            }
+            
+            // Pagar todas
+            int paid = 0;
+            for (Map<String, Object> inv : pending) {
+                String invoiceId = (String) inv.get("invoiceId");
+                if (payInvoice(invoiceId, userId)) {
+                    paid++;
+                }
+            }
+            
+            logger.info("{} facturas pagadas de {} pendientes", paid, pending.size());
+            return paid;
+            
+        } catch (Exception e) {
+            logger.error("Error pagando facturas pendientes", e);
+            return 0;
+        }
+    }
+    
+    /**
+     * Carga saldo a cuenta corriente
+     */
+    public boolean addBalanceToAccount(String userId, Double amount) {
+        try {
+            MongoCollection<Document> accounts = mongoDb.getCollection("accounts");
+            
+            Document account = accounts.find(new Document("userId", userId)).first();
+            double newBalance;
+            String accountId;
+            
+            if (account == null) {
+                // Crear cuenta si no existe
+                accountId = UUID.randomUUID().toString();
+                newBalance = amount;
+                account = new Document("_id", accountId)
+                    .append("userId", userId)
+                    .append("balance", newBalance)
+                    .append("createdAt", new Date());
+                accounts.insertOne(account);
+            } else {
+                // Actualizar saldo existente
+                // Manejar _id que puede ser String o ObjectId
+                Object idObj = account.get("_id");
+                if (idObj instanceof String) {
+                    accountId = (String) idObj;
+                } else {
+                    accountId = idObj.toString();
+                }
+                
+                double currentBalance = account.getDouble("balance");
+                newBalance = currentBalance + amount;
+                
+                accounts.updateOne(
+                    new Document("userId", userId),
+                    new Document("$set", new Document("balance", newBalance))
+                );
+            }
+            
+            // Registrar movimiento
+            mongoDb.getCollection("account_movements").insertOne(
+                new Document("_id", UUID.randomUUID().toString())
+                    .append("accountId", accountId)
+                    .append("type", "credito")
+                    .append("amount", amount)
+                    .append("balance", newBalance)
+                    .append("description", "Carga de saldo")
+                    .append("ts", new Date())
+            );
+            
+            logger.info("Saldo cargado a cuenta de usuario {}: ${}", userId, amount);
+            return true;
+            
+        } catch (Exception e) {
+            logger.error("Error cargando saldo", e);
+            return false;
+        }
+    }
 }
 

@@ -70,12 +70,12 @@ public class DataSeeder {
                 syncExistingUsersToNeo4j();
             } else {
                 // Seed completo si no hay datos
-                seedMongoData();
-                seedNeo4jData();
-                seedCassandraData();
-                
-                logger.info("✅ Seeding completado exitosamente!");
-                logSeedingSummary();
+            seedMongoData();
+            seedNeo4jData();
+            seedCassandraData();
+            
+            logger.info("✅ Seeding completado exitosamente!");
+            logSeedingSummary();
             }
             
         } catch (Exception e) {

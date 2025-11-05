@@ -997,27 +997,65 @@ public class Application {
         // Usar el ID del usuario autenticado actual
         String userId = (String) currentUser.get("userId");
         
+        // Filtrar por ciudad
         System.out.println("\n¿Deseas filtrar por ciudad? (s/n): ");
-        String filterResponse = scanner.nextLine().trim().toLowerCase();
-        
-        List<Map<String, Object>> status;
+        String cityFilterResponse = scanner.nextLine().trim().toLowerCase();
         String cityFilter = null;
         
-        if (filterResponse.equals("s") || filterResponse.equals("si") || filterResponse.equals("sí")) {
+        if (cityFilterResponse.equals("s") || cityFilterResponse.equals("si") || cityFilterResponse.equals("sí")) {
             System.out.print("Ciudad: ");
             cityFilter = scanner.nextLine().trim();
-            status = sensorService.getSensorStatusByCity(userId, cityFilter);
-        } else {
-            status = sensorService.getCurrentSensorStatus(userId);
         }
         
-        System.out.println("\n📡 ESTADO DE SENSORES" + 
-                          (cityFilter != null ? " - " + cityFilter : "") + 
-                          ": " + status.size());
+        // Filtrar por rango de fechas
+        System.out.println("\n¿Deseas filtrar por rango de fechas? (s/n): ");
+        String dateFilterResponse = scanner.nextLine().trim().toLowerCase();
+        LocalDate startDate = null;
+        LocalDate endDate = null;
+        
+        if (dateFilterResponse.equals("s") || dateFilterResponse.equals("si") || dateFilterResponse.equals("sí")) {
+            System.out.print("Fecha de inicio (YYYY-MM-DD): ");
+            try {
+                String startDateStr = scanner.nextLine().trim();
+                startDate = LocalDate.parse(startDateStr);
+                
+                System.out.print("Fecha de fin (YYYY-MM-DD): ");
+                String endDateStr = scanner.nextLine().trim();
+                endDate = LocalDate.parse(endDateStr);
+                
+                if (startDate.isAfter(endDate)) {
+                    System.out.println("❌ La fecha de inicio debe ser anterior a la fecha de fin");
+                    return;
+                }
+            } catch (Exception e) {
+                System.out.println("❌ Formato de fecha inválido. Usa YYYY-MM-DD (ejemplo: 2025-01-15)");
+                return;
+            }
+        }
+        
+        // Obtener estado de sensores con filtros
+        List<Map<String, Object>> status = sensorService.getSensorStatusWithFilters(
+            userId, cityFilter, startDate, endDate
+        );
+        
+        // Construir título
+        StringBuilder title = new StringBuilder("\n📡 ESTADO DE SENSORES");
+        if (cityFilter != null) {
+            title.append(" - ").append(cityFilter);
+        }
+        if (startDate != null && endDate != null) {
+            title.append(" (").append(startDate).append(" a ").append(endDate).append(")");
+        }
+        title.append(": ").append(status.size());
+        
+        System.out.println(title.toString());
         System.out.println("═".repeat(70));
         
         if (status.isEmpty()) {
-            System.out.println("No hay sensores" + (cityFilter != null ? " en " + cityFilter : ""));
+            System.out.println("No hay sensores" + 
+                             (cityFilter != null ? " en " + cityFilter : "") + 
+                             (startDate != null && endDate != null ? 
+                              " con mediciones entre " + startDate + " y " + endDate : ""));
             return;
         }
         
@@ -1027,7 +1065,26 @@ public class Application {
                              " (" + sensor.get("sensorState") + ")");
             System.out.println("   ID: " + sensor.get("sensorId"));
             
-            if (sensor.get("lastTemperature") != null) {
+            // Si hay rango de fechas, mostrar estadísticas del rango
+            if (startDate != null && endDate != null && sensor.containsKey("measurementCount")) {
+                Integer count = (Integer) sensor.get("measurementCount");
+                if (count > 0) {
+                    System.out.println("   📊 Estadísticas del rango (" + count + " mediciones):");
+                    System.out.println("      Temperatura: Max " + String.format("%.1f", sensor.get("maxTemperature")) + 
+                                     "°C, Min " + String.format("%.1f", sensor.get("minTemperature")) + 
+                                     "°C, Prom " + String.format("%.1f", sensor.get("avgTemperature")) + "°C");
+                    System.out.println("      Humedad: Max " + String.format("%.1f", sensor.get("maxHumidity")) + 
+                                     "%, Min " + String.format("%.1f", sensor.get("minHumidity")) + 
+                                     "%, Prom " + String.format("%.1f", sensor.get("avgHumidity")) + "%");
+                    System.out.println("   Última medición del rango: T:" + 
+                                     String.format("%.1f", sensor.get("lastTemperature")) + "°C, H:" + 
+                                     String.format("%.1f", sensor.get("lastHumidity")) + "%");
+                    System.out.println("   Momento: " + sensor.get("lastMeasurementTime"));
+                } else {
+                    System.out.println("   Estado: Sin mediciones en el rango de fechas");
+                }
+            } else if (sensor.get("lastTemperature") != null) {
+                // Sin rango de fechas, mostrar última medición
                 Double temp = (Double) sensor.get("lastTemperature");
                 Double hum = (Double) sensor.get("lastHumidity");
                 System.out.println("   Última medición: T:" + String.format("%.1f", temp) + "°C, H:" + String.format("%.1f", hum) + "%");
@@ -1126,7 +1183,7 @@ public class Application {
     
     private void showProcessMenu() {
         System.out.println("\n📋 === GESTIÓN DE PROCESOS Y REPORTES ===");
-        System.out.println("1. Solicitar nuevo reporte");
+        System.out.println("1. Solicitar nuevo proceso");
         System.out.println("2. Ver mis procesos solicitados");
         System.out.println("3. Ejecutar proceso pendiente");
         System.out.println("4. Ver resultado de proceso");
@@ -1176,7 +1233,8 @@ public class Application {
         System.out.println("\n💰 === FACTURACIÓN Y CUENTA CORRIENTE ===");
         System.out.println("1. Ver mis facturas");
         System.out.println("2. Ver saldo de cuenta corriente");
-        System.out.println("3. Generar factura para proceso");
+        System.out.println("3. Pagar factura pendiente");
+        System.out.println("4. Cargar saldo a cuenta corriente");
         System.out.println("0. Volver al menú principal");
         
         System.out.print("Selecciona una opción: ");
@@ -1186,7 +1244,8 @@ public class Application {
             switch (option) {
                 case 1 -> viewMyInvoices();
                 case 2 -> viewAccountBalance();
-                case 3 -> generateInvoiceForProcess();
+                case 3 -> payInvoice();
+                case 4 -> addBalanceToAccount();
                 case 0 -> { /* Volver */ }
                 default -> System.out.println("❌ Opción inválida.");
             }
@@ -1478,22 +1537,123 @@ public class Application {
         }
     }
     
-    private void generateInvoiceForProcess() {
-        // Verificar permisos de admin
-        if (!isAdmin()) {
-            System.out.println("❌ Solo administradores pueden generar facturas manualmente");
+    /**
+     * Paga factura pendiente (todas o por ID)
+     */
+    private void payInvoice() {
+        String userId = (String) currentUser.get("userId");
+        
+        // Mostrar facturas pendientes
+        List<Map<String, Object>> pending = invoiceService.getPendingInvoices(userId);
+        
+        if (pending.isEmpty()) {
+            System.out.println("\n✅ No tienes facturas pendientes");
             return;
         }
         
-        System.out.print("ID del proceso completado: ");
-        String requestId = scanner.nextLine();
+        System.out.println("\n💰 FACTURAS PENDIENTES (" + pending.size() + ")");
+        System.out.println("─".repeat(80));
         
-        String invoiceId = invoiceService.generateInvoiceForProcess(requestId);
+        double totalPending = 0;
+        for (Map<String, Object> inv : pending) {
+            System.out.println("ID: " + inv.get("invoiceId"));
+            System.out.println("  Proceso: " + inv.get("processId"));
+            System.out.println("  Monto: $" + String.format("%.2f", inv.get("amount")));
+            System.out.println("  Fecha: " + inv.get("issuedAt"));
+            System.out.println("─".repeat(80));
+            totalPending += (Double) inv.get("amount");
+        }
         
-        if (invoiceId != null) {
-            System.out.println("✅ Factura generada: " + invoiceId);
-        } else {
-            System.out.println("❌ Error generando factura");
+        Double balance = invoiceService.getAccountBalance(userId);
+        System.out.println("\n💰 Saldo actual: $" + String.format("%.2f", balance));
+        System.out.println("📋 Total pendiente: $" + String.format("%.2f", totalPending));
+        
+        if (balance < totalPending) {
+            System.out.println("⚠️ Saldo insuficiente. Necesitas cargar saldo primero.");
+        }
+        
+        System.out.println("\n1. Pagar todas las facturas pendientes");
+        System.out.println("2. Pagar factura por ID");
+        System.out.println("0. Cancelar");
+        System.out.print("Selecciona una opción: ");
+        
+        try {
+            int option = Integer.parseInt(scanner.nextLine());
+            
+            switch (option) {
+                case 1 -> {
+                    System.out.println("\n⏳ Pagando todas las facturas...");
+                    int paid = invoiceService.payAllPendingInvoices(userId);
+                    
+                    if (paid == -1) {
+                        System.out.println("❌ Saldo insuficiente para pagar todas las facturas");
+                        System.out.println("💡 Necesitas cargar $" + String.format("%.2f", totalPending - balance) + " más");
+                    } else if (paid > 0) {
+                        System.out.println("✅ " + paid + " factura(s) pagada(s) exitosamente");
+                        Double newBalance = invoiceService.getAccountBalance(userId);
+                        System.out.println("💰 Nuevo saldo: $" + String.format("%.2f", newBalance));
+                    } else {
+                        System.out.println("❌ No se pudieron pagar las facturas");
+                    }
+                }
+                case 2 -> {
+                    System.out.print("ID de la factura a pagar: ");
+                    String invoiceId = scanner.nextLine();
+                    
+                    System.out.println("\n⏳ Pagando factura...");
+                    boolean success = invoiceService.payInvoice(invoiceId, userId);
+                    
+                    if (success) {
+                        System.out.println("✅ Factura pagada exitosamente");
+                        Double newBalance = invoiceService.getAccountBalance(userId);
+                        System.out.println("💰 Nuevo saldo: $" + String.format("%.2f", newBalance));
+                    } else {
+                        System.out.println("❌ Error pagando factura. Verifica el ID y tu saldo.");
+                    }
+                }
+                case 0 -> { /* Cancelar */ }
+                default -> System.out.println("❌ Opción inválida.");
+            }
+        } catch (NumberFormatException e) {
+            System.out.println("❌ Por favor ingresa un número válido.");
+        }
+    }
+    
+    /**
+     * Carga saldo a cuenta corriente
+     */
+    private void addBalanceToAccount() {
+        String userId = (String) currentUser.get("userId");
+        
+        System.out.println("\n💰 CARGAR SALDO A CUENTA CORRIENTE");
+        System.out.println("─".repeat(60));
+        
+        Double currentBalance = invoiceService.getAccountBalance(userId);
+        System.out.println("Saldo actual: $" + String.format("%.2f", currentBalance));
+        
+        System.out.print("Monto a cargar: $");
+        try {
+            String amountStr = scanner.nextLine().trim().replace(",", ".");
+            double amount = Double.parseDouble(amountStr);
+            
+            if (amount <= 0) {
+                System.out.println("❌ El monto debe ser mayor a 0");
+                return;
+            }
+            
+            System.out.println("\n⏳ Cargando saldo...");
+            boolean success = invoiceService.addBalanceToAccount(userId, amount);
+            
+            if (success) {
+                System.out.println("✅ Saldo cargado exitosamente: $" + String.format("%.2f", amount));
+                Double newBalance = invoiceService.getAccountBalance(userId);
+                System.out.println("💰 Nuevo saldo: $" + String.format("%.2f", newBalance));
+            } else {
+                System.out.println("❌ Error cargando saldo");
+            }
+            
+        } catch (NumberFormatException e) {
+            System.out.println("❌ Por favor ingresa un número válido.");
         }
     }
     

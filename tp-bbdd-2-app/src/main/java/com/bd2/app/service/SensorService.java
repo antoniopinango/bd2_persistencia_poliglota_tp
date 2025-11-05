@@ -152,6 +152,28 @@ public class SensorService {
     }
     
     /**
+     * Asigna un técnico a una ciudad usando email (user-friendly)
+     */
+    public boolean assignTechnicianToCityByEmail(String adminUserId, String technicianEmail, String cityName) {
+        try {
+            // Buscar técnico por email
+            Optional<User> techOpt = userDAO.findByEmail(technicianEmail);
+            
+            if (techOpt.isEmpty()) {
+                logger.warn("Técnico no encontrado: {}", technicianEmail);
+                return false;
+            }
+            
+            String technicianId = techOpt.get().getId();
+            return assignTechnicianToCity(adminUserId, technicianId, cityName);
+            
+        } catch (Exception e) {
+            logger.error("Error asignando técnico por email", e);
+            return false;
+        }
+    }
+    
+    /**
      * Asigna un técnico a una ciudad
      * - Actualiza relaciones en Neo4j
      * - Verifica permisos administrativos

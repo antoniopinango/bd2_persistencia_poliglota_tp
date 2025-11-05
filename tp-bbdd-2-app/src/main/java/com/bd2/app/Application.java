@@ -1008,16 +1008,22 @@ public class Application {
         // Usar el ID del usuario autenticado actual como admin
         String adminId = (String) currentUser.get("userId");
         
-        System.out.print("ID de técnico: ");
-        String techId = scanner.nextLine();
-        System.out.print("Ciudad: ");
-        String city = scanner.nextLine();
+        System.out.println("\n🔧 ASIGNAR TÉCNICO A CIUDAD");
+        System.out.println("═".repeat(60));
         
-        boolean assigned = sensorService.assignTechnicianToCity(adminId, techId, city);
+        System.out.print("Email del técnico: ");
+        String techEmail = scanner.nextLine().trim();
+        
+        System.out.print("Ciudad: ");
+        String city = scanner.nextLine().trim();
+        
+        boolean assigned = sensorService.assignTechnicianToCityByEmail(adminId, techEmail, city);
         if (assigned) {
-            System.out.println("✅ Técnico asignado a la ciudad");
+            System.out.println("\n✅ Técnico asignado exitosamente");
+            System.out.println("Técnico: " + techEmail);
+            System.out.println("Ciudad: " + city);
         } else {
-            System.out.println("❌ Error asignando técnico (verifica permisos)");
+            System.out.println("❌ Error asignando técnico (verifica que el email exista)");
         }
     }
     

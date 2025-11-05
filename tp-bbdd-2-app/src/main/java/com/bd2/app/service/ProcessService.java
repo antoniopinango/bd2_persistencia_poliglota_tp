@@ -122,10 +122,14 @@ public class ProcessService {
     }
     
     /**
-     * Genera reporte de Max/Min con rango de fechas
+     * Genera reporte de Max/Min con rango de fechas y por ciudad o país
      */
     private Map<String, Object> generateMaxMinReport(Map<String, String> params) {
-        String city = params.getOrDefault("city", "Buenos Aires");
+        String scope = params.getOrDefault("scope", "city");
+        String location = scope.equals("city") ? 
+                         params.getOrDefault("city", "Buenos Aires") : 
+                         params.getOrDefault("country", "Argentina");
+        
         String startDateStr = params.getOrDefault("startDate", LocalDate.now().toString());
         String endDateStr = params.getOrDefault("endDate", LocalDate.now().toString());
         
@@ -143,7 +147,7 @@ public class ProcessService {
         // Iterar por cada día en el rango
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            Map<String, Object> dayStats = measurementDAO.getTemperatureStats(city, currentDate);
+            Map<String, Object> dayStats = measurementDAO.getTemperatureStats(location, currentDate);
             
             int count = (int) dayStats.getOrDefault("count", 0);
             if (count > 0) {
@@ -160,7 +164,8 @@ public class ProcessService {
         
         Map<String, Object> report = new HashMap<>();
         report.put("tipo", "Reporte Max/Min");
-        report.put("ciudad", city);
+        report.put("ambito", scope.equals("city") ? "Ciudad" : "País");
+        report.put("ubicacion", location);
         report.put("fecha_inicio", startDate.toString());
         report.put("fecha_fin", endDate.toString());
         report.put("dias_en_rango", daysWithData);
@@ -174,10 +179,14 @@ public class ProcessService {
     }
     
     /**
-     * Genera reporte de Promedios con rango de fechas
+     * Genera reporte de Promedios con rango de fechas y por ciudad o país
      */
     private Map<String, Object> generateAverageReport(Map<String, String> params) {
-        String city = params.getOrDefault("city", "Buenos Aires");
+        String scope = params.getOrDefault("scope", "city");
+        String location = scope.equals("city") ? 
+                         params.getOrDefault("city", "Buenos Aires") : 
+                         params.getOrDefault("country", "Argentina");
+        
         String startDateStr = params.getOrDefault("startDate", LocalDate.now().toString());
         String endDateStr = params.getOrDefault("endDate", LocalDate.now().toString());
         
@@ -193,7 +202,7 @@ public class ProcessService {
         // Iterar por cada día en el rango
         LocalDate currentDate = startDate;
         while (!currentDate.isAfter(endDate)) {
-            Map<String, Object> dayStats = measurementDAO.getTemperatureStats(city, currentDate);
+            Map<String, Object> dayStats = measurementDAO.getTemperatureStats(location, currentDate);
             
             int count = (int) dayStats.getOrDefault("count", 0);
             if (count > 0) {
@@ -211,7 +220,8 @@ public class ProcessService {
         
         Map<String, Object> report = new HashMap<>();
         report.put("tipo", "Reporte de Promedios");
-        report.put("ciudad", city);
+        report.put("ambito", scope.equals("city") ? "Ciudad" : "País");
+        report.put("ubicacion", location);
         report.put("fecha_inicio", startDate.toString());
         report.put("fecha_fin", endDate.toString());
         report.put("dias_en_rango", daysWithData);

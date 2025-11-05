@@ -1201,8 +1201,29 @@ public class Application {
             return;
         }
         
-        System.out.print("Ciudad (ej: Buenos Aires): ");
-        String city = scanner.nextLine();
+        System.out.println("\nÁmbito del reporte:");
+        System.out.println("1. Por ciudad");
+        System.out.println("2. Por país");
+        System.out.print("Selecciona (1 o 2): ");
+        
+        String scope;
+        String location;
+        try {
+            int scopeOption = Integer.parseInt(scanner.nextLine());
+            if (scopeOption == 2) {
+                scope = "country";
+                System.out.print("País (ej: Argentina): ");
+                location = scanner.nextLine();
+            } else {
+                scope = "city";
+                System.out.print("Ciudad (ej: Buenos Aires): ");
+                location = scanner.nextLine();
+            }
+        } catch (Exception e) {
+            scope = "city";
+            System.out.print("Ciudad (ej: Buenos Aires): ");
+            location = scanner.nextLine();
+        }
         
         System.out.println("\n¿Deseas consultar un rango de fechas? (s/n): ");
         String rangeResponse = scanner.nextLine().trim().toLowerCase();
@@ -1227,11 +1248,11 @@ public class Application {
             endDate = java.time.LocalDate.now().toString();
         }
         
-        Map<String, String> params = Map.of(
-            "city", city,
-            "startDate", startDate,
-            "endDate", endDate
-        );
+        Map<String, String> params = new HashMap<>();
+        params.put("scope", scope);
+        params.put(scope, location); // "city" o "country"
+        params.put("startDate", startDate);
+        params.put("endDate", endDate);
         
         String requestId = processService.requestProcess(userId, processTypeId, params);
         
@@ -1239,6 +1260,7 @@ public class Application {
             System.out.println("\n✅ Proceso solicitado exitosamente!");
             System.out.println("ID: " + requestId);
             System.out.println("Tipo: " + processTypeId);
+            System.out.println("Ámbito: " + (scope.equals("city") ? "Ciudad" : "País") + " - " + location);
             System.out.println("Período: " + startDate + " al " + endDate);
             System.out.println("💡 Usa la opción 3 para ejecutarlo");
         } else {

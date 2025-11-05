@@ -467,11 +467,11 @@ public class SensorService {
     }
     
     /**
-     * Sincroniza sensor a Neo4j
+     * Sincroniza sensor a Neo4j con jerarquía geográfica completa
      */
     private void syncSensorToNeo4j(String sensorId, String code, String type, String city) {
         try {
-            // Crear nodo Sensor y relacionarlo con City
+            // Crear nodo Sensor y relacionarlo con City y Country
             org.neo4j.driver.Session session = com.bd2.app.database.Neo4jConnectionManager
                 .getInstance().createSession(org.neo4j.driver.AccessMode.WRITE);
             
@@ -480,12 +480,14 @@ public class SensorService {
                 "SET s.code = $code, s.type = $type, s.state = 'activo' " +
                 "WITH s " +
                 "MERGE (c:City {name: $city}) " +
-                "MERGE (s)-[:IN_CITY]->(c)",
+                "MERGE (co:Country {name: 'Argentina'}) " +
+                "MERGE (s)-[:IN_CITY]->(c) " +
+                "MERGE (c)-[:IN_COUNTRY]->(co)",
                 org.neo4j.driver.Values.parameters("sensorId", sensorId, "code", code, "type", type, "city", city)
             );
             
             session.close();
-            logger.debug("Sensor {} sincronizado en Neo4j", code);
+            logger.debug("Sensor {} sincronizado en Neo4j con jerarquía completa", code);
             
         } catch (Exception e) {
             logger.warn("Error sincronizando sensor en Neo4j: {}", e.getMessage());

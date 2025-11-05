@@ -228,5 +228,80 @@ public class MessageService {
             return new ArrayList<>();
         }
     }
+    
+    /**
+     * Envía un mensaje grupal (difusión) a múltiples destinatarios por email
+     */
+    public boolean sendGroupMessage(String fromUserId, List<String> recipientEmails, String content) {
+        try {
+            if (recipientEmails.isEmpty()) {
+                logger.warn("No hay destinatarios para el mensaje grupal");
+                return false;
+            }
+            
+            // Validar que todos los emails existan
+            List<String> validUserIds = new ArrayList<>();
+            for (String email : recipientEmails) {
+                Optional<User> userOpt = userDAO.findByEmail(email.trim());
+                if (userOpt.isPresent()) {
+                    validUserIds.add(userOpt.get().getId());
+                } else {
+                    logger.warn("Usuario no encontrado: {}", email);
+                }
+            }
+            
+            if (validUserIds.isEmpty()) {
+                logger.warn("No hay destinatarios válidos para el mensaje grupal");
+                return false;
+            }
+            
+            // Generar un ID de conversación para la difusión (basado en todos los participantes)
+            List<String> allParticipants = new ArrayList<>();
+            allParticipants.add(fromUserId);
+            allParticipants.addAll(validUserIds);
+            Collections.sort(allParticipants);
+            
+            String combinedIds = String.join("_", allParticipants);
+            UUID conversationId = UUID.nameUUIDFromBytes(("group_" + combinedIds).getBytes());
+            UUID messageId = Uuids.timeBased();
+            
+            // Insertar mensaje en Cassandra con type="grupal"
+            String query = "INSERT INTO messages_by_conversation " +
+                          "(conversation_id, ts, message_id, sender_id, content, type, metadata) " +
+                          "VALUES (?, now(), ?, ?, ?, ?, ?)";
+            
+            PreparedStatement prepared = session.prepare(query);
+            
+            // Metadata con información de la difusión
+            Map<String, String> metadata = new HashMap<>();
+            metadata.put("recipient_count", String.valueOf(validUserIds.size()));
+            metadata.put("is_broadcast", "true");
+            
+            BoundStatement bound = prepared.bind(
+                conversationId,
+                messageId,
+                UUID.fromString(fromUserId),
+                content,
+                "grupal",
+                metadata
+            );
+            
+            session.execute(bound);
+            
+            // Actualizar conversación para todos los destinatarios y el remitente
+            for (String userId : validUserIds) {
+                updateUserConversation(userId, conversationId, content);
+            }
+            updateUserConversation(fromUserId, conversationId, content);
+            
+            logger.info("Mensaje grupal enviado de {} a {} destinatarios", 
+                       fromUserId, validUserIds.size());
+            return true;
+            
+        } catch (Exception e) {
+            logger.error("Error enviando mensaje grupal", e);
+            return false;
+        }
+    }
 }
 

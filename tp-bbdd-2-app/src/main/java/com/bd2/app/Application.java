@@ -178,19 +178,6 @@ public class Application {
                     System.out.println("\n✅ ¡Bienvenido, " + authResult.get("fullName") + "!");
                     System.out.println("📊 Departamento: " + authResult.get("department"));
                     
-                    // Mostrar roles de forma más clara
-                    if (this.currentRoles.isEmpty()) {
-                        System.out.println("🎭 Roles: (sin roles en Neo4j - modo simplificado)");
-                    } else {
-                        System.out.println("🎭 Roles: " + this.currentRoles);
-                    }
-                    
-                    // Mostrar permisos de forma más clara
-                    if (this.currentPermissions.isEmpty()) {
-                        System.out.println("🔐 Permisos: (todos - modo simplificado)");
-                    } else {
-                        System.out.println("🔐 Permisos: " + this.currentPermissions);
-                    }
                     
                     return true;
                 } else {
@@ -1209,8 +1196,9 @@ public class Application {
     private void showMessageMenu() {
         System.out.println("\n💬 === MENSAJERÍA ===");
         System.out.println("1. Enviar mensaje privado");
-        System.out.println("2. Ver mis conversaciones");
-        System.out.println("3. Ver mensajes de conversación");
+        System.out.println("2. Enviar mensaje grupal (difusión)");
+        System.out.println("3. Ver mis conversaciones");
+        System.out.println("4. Ver mensajes de conversación");
         System.out.println("0. Volver al menú principal");
         
         System.out.print("Selecciona una opción: ");
@@ -1219,8 +1207,9 @@ public class Application {
             
             switch (option) {
                 case 1 -> sendPrivateMessage();
-                case 2 -> viewMyConversations();
-                case 3 -> viewConversationMessages();
+                case 2 -> sendGroupMessage();
+                case 3 -> viewMyConversations();
+                case 4 -> viewConversationMessages();
                 case 0 -> { /* Volver */ }
                 default -> System.out.println("❌ Opción inválida.");
             }
@@ -1432,6 +1421,76 @@ public class Application {
             System.out.println("✅ Mensaje enviado exitosamente a " + toEmail);
         } else {
             System.out.println("❌ Error enviando mensaje (verifica que el email exista)");
+        }
+    }
+    
+    private void sendGroupMessage() {
+        String fromUserId = (String) currentUser.get("userId");
+        
+        System.out.println("\n📢 === ENVIAR MENSAJE GRUPAL (DIFUSIÓN) ===");
+        System.out.println("Ingresa los emails de los destinatarios:");
+        
+        List<String> recipientEmails = new ArrayList<>();
+        
+        // Primer destinatario
+        System.out.print("Ingrese un email de destinatario: ");
+        String email = scanner.nextLine().trim();
+        
+        if (email.isEmpty()) {
+            System.out.println("❌ Debes ingresar al menos un email de destinatario");
+            return;
+        }
+        
+        recipientEmails.add(email);
+        
+        // Agregar más destinatarios
+        while (true) {
+            System.out.print("¿Quiere agregar otro destinatario? (s/n): ");
+            String response = scanner.nextLine().trim().toLowerCase();
+            
+            if (!response.equals("s") && !response.equals("si") && !response.equals("sí")) {
+                break;
+            }
+            
+            System.out.print("Ingrese un email de destinatario: ");
+            email = scanner.nextLine().trim();
+            
+            if (email.isEmpty()) {
+                System.out.println("⚠️ Email vacío, omitiendo...");
+                continue;
+            }
+            
+            // Evitar duplicados
+            if (recipientEmails.contains(email)) {
+                System.out.println("⚠️ Este email ya está en la lista");
+                continue;
+            }
+            
+            recipientEmails.add(email);
+            System.out.println("✅ Destinatario agregado. Total: " + recipientEmails.size());
+        }
+        
+        if (recipientEmails.isEmpty()) {
+            System.out.println("❌ No hay destinatarios para enviar el mensaje");
+            return;
+        }
+        
+        // Mostrar resumen
+        System.out.println("\n📋 RESUMEN DE DIFUSIÓN:");
+        System.out.println("Destinatarios: " + recipientEmails.size());
+        for (int i = 0; i < recipientEmails.size(); i++) {
+            System.out.println("  " + (i + 1) + ". " + recipientEmails.get(i));
+        }
+        
+        System.out.print("\nMensaje: ");
+        String content = scanner.nextLine();
+        
+        boolean sent = messageService.sendGroupMessage(fromUserId, recipientEmails, content);
+        
+        if (sent) {
+            System.out.println("✅ Mensaje grupal enviado exitosamente a " + recipientEmails.size() + " destinatario(s)");
+        } else {
+            System.out.println("❌ Error enviando mensaje grupal (verifica que los emails existan)");
         }
     }
     

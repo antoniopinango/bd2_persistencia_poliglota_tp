@@ -357,6 +357,45 @@ public class SensorService {
     }
     
     /**
+     * Obtiene un sensor por ID desde MongoDB
+     */
+    public Sensor getSensorById(String sensorId) {
+        try {
+            com.bd2.app.database.MongoConnectionManager mongoManager = 
+                com.bd2.app.database.MongoConnectionManager.getInstance();
+            com.mongodb.client.MongoDatabase db = mongoManager.getDatabase();
+            
+            Document sensorDoc = db.getCollection("sensors")
+                .find(new Document("_id", sensorId))
+                .first();
+            
+            if (sensorDoc == null) {
+                logger.debug("Sensor no encontrado: {}", sensorId);
+                return null;
+            }
+            
+            // Convertir Document a Sensor
+            Sensor sensor = new Sensor();
+            sensor.setId(sensorDoc.getString("_id"));
+            sensor.setCode(sensorDoc.getString("name")); // Usar name como code
+            sensor.setType(sensorDoc.getString("type"));
+            sensor.setState(sensorDoc.getString("status"));
+            
+            Document location = sensorDoc.get("location", Document.class);
+            if (location != null) {
+                sensor.setCity(location.getString("city"));
+                sensor.setCountry(location.getString("country"));
+            }
+            
+            return sensor;
+            
+        } catch (Exception e) {
+            logger.error("Error obteniendo sensor: {}", sensorId, e);
+            return null;
+        }
+    }
+    
+    /**
      * Crea un nuevo sensor (SIMPLE)
      */
     public String createSensor(String userId, String name, String city, String country, 

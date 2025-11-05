@@ -7,6 +7,7 @@ import com.bd2.app.database.Neo4jConnectionManager;
 import com.bd2.app.migrations.MigrationRunner;
 import com.bd2.app.model.Measurement;
 import com.bd2.app.model.User;
+import com.bd2.app.model.Sensor;
 import com.bd2.app.service.SensorService;
 import com.bd2.app.service.UserService;
 import com.bd2.app.service.ProcessService;
@@ -857,51 +858,62 @@ public class Application {
         // Usar el ID del usuario autenticado actual
         String userId = (String) currentUser.get("userId");
         
+        System.out.println("\n📊 REGISTRAR NUEVA MEDICIÓN");
+        System.out.println("═".repeat(60));
+        
         System.out.print("ID de sensor: ");
         String sensorId = scanner.nextLine();
         
-        System.out.println("\nTipo de medición:");
-        System.out.println("1. Temperatura");
-        System.out.println("2. Humedad");
-        System.out.print("Selecciona (1 o 2): ");
+        // Obtener información del sensor para saber su ubicación y tipo
+        Sensor sensor = sensorService.getSensorById(sensorId);
         
-        String type;
-        Double temperature = null;
-        Double humidity = null;
+        if (sensor == null) {
+            System.out.println("❌ Sensor no encontrado: " + sensorId);
+            return;
+        }
+        
+        System.out.println("Sensor: " + sensor.getCode());
+        System.out.println("Ubicación: " + sensor.getCity() + ", " + sensor.getCountry());
+        System.out.println("Tipo de sensor: " + sensor.getType());
+        System.out.println();
+        
+        String type = sensor.getType();
+        Double temperature = 0.0;
+        Double humidity = 0.0;
         
         try {
-            int typeOption = Integer.parseInt(scanner.nextLine());
-            
-            if (typeOption == 1) {
-                type = "temperature";
+            if (type.equals("temperature")) {
                 System.out.print("Temperatura (°C): ");
                 temperature = Double.parseDouble(scanner.nextLine());
-                humidity = 0.0; // Valor por defecto
-            } else {
-                type = "humidity";
+            } else if (type.equals("humidity")) {
                 System.out.print("Humedad (%): ");
                 humidity = Double.parseDouble(scanner.nextLine());
-                temperature = 0.0; // Valor por defecto
+            } else {
+                // Si es temperature_humidity, pedir ambos
+                System.out.print("Temperatura (°C): ");
+                temperature = Double.parseDouble(scanner.nextLine());
+                System.out.print("Humedad (%): ");
+                humidity = Double.parseDouble(scanner.nextLine());
             }
         } catch (Exception e) {
             System.out.println("❌ Entrada inválida");
             return;
         }
         
-        System.out.print("Ciudad: ");
-        String city = scanner.nextLine();
-        System.out.print("País: ");
-        String country = scanner.nextLine();
-        
-        Measurement measurement = new Measurement(sensorId, temperature, humidity, type, city, country);
+        // Usar ciudad y país del sensor
+        Measurement measurement = new Measurement(sensorId, temperature, humidity, type, 
+                                                 sensor.getCity(), sensor.getCountry());
         boolean recorded = sensorService.recordMeasurement(userId, measurement);
         
         if (recorded) {
-            System.out.println("✅ Medición registrada exitosamente");
-            if (type.equals("temperature")) {
-                System.out.println("   Temperatura: " + temperature + "°C");
-            } else {
-                System.out.println("   Humedad: " + humidity + "%");
+            System.out.println("\n✅ Medición registrada exitosamente");
+            System.out.println("Sensor: " + sensor.getCode());
+            System.out.println("Ubicación: " + sensor.getCity() + ", " + sensor.getCountry());
+            if (type.equals("temperature") || temperature > 0) {
+                System.out.println("Temperatura: " + temperature + "°C");
+            }
+            if (type.equals("humidity") || humidity > 0) {
+                System.out.println("Humedad: " + humidity + "%");
             }
         } else {
             System.out.println("❌ Error registrando medición");

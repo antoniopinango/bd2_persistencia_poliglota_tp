@@ -122,45 +122,102 @@ public class ProcessService {
     }
     
     /**
-     * Genera reporte de Max/Min (SIMPLE)
+     * Genera reporte de Max/Min con rango de fechas
      */
     private Map<String, Object> generateMaxMinReport(Map<String, String> params) {
         String city = params.getOrDefault("city", "Buenos Aires");
-        String dateStr = params.getOrDefault("date", LocalDate.now().toString());
-        LocalDate date = LocalDate.parse(dateStr);
+        String startDateStr = params.getOrDefault("startDate", LocalDate.now().toString());
+        String endDateStr = params.getOrDefault("endDate", LocalDate.now().toString());
         
-        Map<String, Object> stats = measurementDAO.getTemperatureStats(city, date);
+        LocalDate startDate = LocalDate.parse(startDateStr);
+        LocalDate endDate = LocalDate.parse(endDateStr);
+        
+        // Acumular estadísticas de todo el rango
+        double maxTemp = Double.MIN_VALUE;
+        double minTemp = Double.MAX_VALUE;
+        double maxHum = Double.MIN_VALUE;
+        double minHum = Double.MAX_VALUE;
+        int totalMeasurements = 0;
+        int daysWithData = 0;
+        
+        // Iterar por cada día en el rango
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            Map<String, Object> dayStats = measurementDAO.getTemperatureStats(city, currentDate);
+            
+            int count = (int) dayStats.getOrDefault("count", 0);
+            if (count > 0) {
+                maxTemp = Math.max(maxTemp, (double) dayStats.get("maxTemp"));
+                minTemp = Math.min(minTemp, (double) dayStats.get("minTemp"));
+                maxHum = Math.max(maxHum, (double) dayStats.get("maxHumidity"));
+                minHum = Math.min(minHum, (double) dayStats.get("minHumidity"));
+                totalMeasurements += count;
+                daysWithData++;
+            }
+            
+            currentDate = currentDate.plusDays(1);
+        }
         
         Map<String, Object> report = new HashMap<>();
         report.put("tipo", "Reporte Max/Min");
         report.put("ciudad", city);
-        report.put("fecha", date.toString());
-        report.put("temperatura_max", stats.get("maxTemp"));
-        report.put("temperatura_min", stats.get("minTemp"));
-        report.put("humedad_max", stats.get("maxHumidity"));
-        report.put("humedad_min", stats.get("minHumidity"));
-        report.put("mediciones_totales", stats.get("count"));
+        report.put("fecha_inicio", startDate.toString());
+        report.put("fecha_fin", endDate.toString());
+        report.put("dias_en_rango", daysWithData);
+        report.put("temperatura_max", totalMeasurements > 0 ? maxTemp : 0);
+        report.put("temperatura_min", totalMeasurements > 0 ? minTemp : 0);
+        report.put("humedad_max", totalMeasurements > 0 ? maxHum : 0);
+        report.put("humedad_min", totalMeasurements > 0 ? minHum : 0);
+        report.put("mediciones_totales", totalMeasurements);
         
         return report;
     }
     
     /**
-     * Genera reporte de Promedios (SIMPLE)
+     * Genera reporte de Promedios con rango de fechas
      */
     private Map<String, Object> generateAverageReport(Map<String, String> params) {
         String city = params.getOrDefault("city", "Buenos Aires");
-        String dateStr = params.getOrDefault("date", LocalDate.now().toString());
-        LocalDate date = LocalDate.parse(dateStr);
+        String startDateStr = params.getOrDefault("startDate", LocalDate.now().toString());
+        String endDateStr = params.getOrDefault("endDate", LocalDate.now().toString());
         
-        Map<String, Object> stats = measurementDAO.getTemperatureStats(city, date);
+        LocalDate startDate = LocalDate.parse(startDateStr);
+        LocalDate endDate = LocalDate.parse(endDateStr);
+        
+        // Acumular para calcular promedios
+        double sumTemp = 0;
+        double sumHum = 0;
+        int totalMeasurements = 0;
+        int daysWithData = 0;
+        
+        // Iterar por cada día en el rango
+        LocalDate currentDate = startDate;
+        while (!currentDate.isAfter(endDate)) {
+            Map<String, Object> dayStats = measurementDAO.getTemperatureStats(city, currentDate);
+            
+            int count = (int) dayStats.getOrDefault("count", 0);
+            if (count > 0) {
+                double avgTemp = (double) dayStats.get("avgTemp");
+                double avgHum = (double) dayStats.get("avgHumidity");
+                
+                sumTemp += avgTemp * count; // Ponderado por cantidad de mediciones
+                sumHum += avgHum * count;
+                totalMeasurements += count;
+                daysWithData++;
+            }
+            
+            currentDate = currentDate.plusDays(1);
+        }
         
         Map<String, Object> report = new HashMap<>();
         report.put("tipo", "Reporte de Promedios");
         report.put("ciudad", city);
-        report.put("fecha", date.toString());
-        report.put("temperatura_promedio", stats.get("avgTemp"));
-        report.put("humedad_promedio", stats.get("avgHumidity"));
-        report.put("mediciones_totales", stats.get("count"));
+        report.put("fecha_inicio", startDate.toString());
+        report.put("fecha_fin", endDate.toString());
+        report.put("dias_en_rango", daysWithData);
+        report.put("temperatura_promedio", totalMeasurements > 0 ? sumTemp / totalMeasurements : 0);
+        report.put("humedad_promedio", totalMeasurements > 0 ? sumHum / totalMeasurements : 0);
+        report.put("mediciones_totales", totalMeasurements);
         
         return report;
     }

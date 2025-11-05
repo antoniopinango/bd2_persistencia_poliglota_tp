@@ -1162,6 +1162,7 @@ public class Application {
         String userId = (String) currentUser.get("userId");
         
         System.out.println("\n📋 SOLICITAR NUEVO REPORTE");
+        System.out.println("═".repeat(60));
         System.out.println("Tipos de reporte disponibles:");
         System.out.println("1. Reporte Max/Min (pt_maxmin)");
         System.out.println("2. Reporte de Promedios (pt_prom)");
@@ -1185,21 +1186,42 @@ public class Application {
         System.out.print("Ciudad (ej: Buenos Aires): ");
         String city = scanner.nextLine();
         
-        System.out.print("Fecha (YYYY-MM-DD) o Enter para hoy: ");
-        String dateStr = scanner.nextLine().trim();
-        if (dateStr.isEmpty()) {
-            dateStr = java.time.LocalDate.now().toString();
+        System.out.println("\n¿Deseas consultar un rango de fechas? (s/n): ");
+        String rangeResponse = scanner.nextLine().trim().toLowerCase();
+        
+        String startDate, endDate;
+        
+        if (rangeResponse.equals("s") || rangeResponse.equals("si") || rangeResponse.equals("sí")) {
+            System.out.print("Fecha inicio (YYYY-MM-DD): ");
+            startDate = scanner.nextLine().trim();
+            if (startDate.isEmpty()) {
+                startDate = java.time.LocalDate.now().minusDays(7).toString();
+            }
+            
+            System.out.print("Fecha fin (YYYY-MM-DD) o Enter para hoy: ");
+            endDate = scanner.nextLine().trim();
+            if (endDate.isEmpty()) {
+                endDate = java.time.LocalDate.now().toString();
+            }
+        } else {
+            // Un solo día (hoy)
+            startDate = java.time.LocalDate.now().toString();
+            endDate = java.time.LocalDate.now().toString();
         }
         
         Map<String, String> params = Map.of(
             "city", city,
-            "date", dateStr
+            "startDate", startDate,
+            "endDate", endDate
         );
         
         String requestId = processService.requestProcess(userId, processTypeId, params);
         
         if (requestId != null) {
-            System.out.println("✅ Proceso solicitado con ID: " + requestId);
+            System.out.println("\n✅ Proceso solicitado exitosamente!");
+            System.out.println("ID: " + requestId);
+            System.out.println("Tipo: " + processTypeId);
+            System.out.println("Período: " + startDate + " al " + endDate);
             System.out.println("💡 Usa la opción 3 para ejecutarlo");
         } else {
             System.out.println("❌ Error solicitando proceso (verifica permisos)");

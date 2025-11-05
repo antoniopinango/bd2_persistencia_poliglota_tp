@@ -984,6 +984,7 @@ public class Application {
             System.out.println("📡 " + sensor.get("sensorCode") + 
                              " - " + sensor.get("city") + 
                              " (" + sensor.get("sensorState") + ")");
+            System.out.println("   ID: " + sensor.get("sensorId"));
             
             if (sensor.get("lastTemperature") != null) {
                 Double temp = (Double) sensor.get("lastTemperature");

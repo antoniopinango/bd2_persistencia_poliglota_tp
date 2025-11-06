@@ -1,0 +1,132 @@
+Trabajo Práctico – Persistencia Políglota
+Integración de MongoDB • Cassandra • Neo4j • Java • Docker
+
+Este proyecto implementa una arquitectura de persistencia poliglota donde una aplicación Java se conecta y opera simultáneamente con MongoDB, Cassandra y Neo4j, todas ejecutándose como contenedores de Docker.
+
+Incluye además un script automatizador (start.sh) que ejecuta todo el pipeline completo:
+1. Inicia los contenedores de cada base de datos
+2. Espera a que los servicios estén listos
+3. Compila la aplicación con Maven
+4. Ejecuta la aplicación final en Java
+
+------------------------------------------------------------
+REQUERIMIENTOS DEL SISTEMA
+------------------------------------------------------------
+1. Java Development Kit (JDK)
+   Se requiere JDK 21 o superior. Recomendado: Eclipse Adoptium Temurin 25.
+   JAVA_HOME debe apuntar a:
+   C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot
+
+   PATH debe incluir:
+   C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot\bin
+
+2. Maven
+   Verificación:
+   mvn -version
+
+3. Docker Desktop
+   Debe estar instalado y en ejecución.
+   Verificación:
+   docker --version
+   docker ps
+
+4. Git Bash (obligatorio para ejecutar start.sh)
+   El script utiliza sintaxis POSIX incompatible con PowerShell.
+
+------------------------------------------------------------
+CONFIGURACIÓN DE JAVA
+------------------------------------------------------------
+Asegurarse de tener:
+JAVA_HOME = C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot
+PATH += C:\Program Files\Eclipse Adoptium\jdk-25.0.1.8-hotspot\bin
+
+En Git Bash, crear/editar:
+C:\Users\tu_usuario\.bashrc
+
+Agregar:
+export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-25.0.1.8-hotspot"
+export PATH="$JAVA_HOME/bin:$PATH"
+
+Reiniciar Git Bash.
+
+------------------------------------------------------------
+INSTALACIÓN DE LAS BASES DE DATOS (VÍA DOCKER)
+------------------------------------------------------------
+El proyecto utiliza las siguientes imágenes oficiales:
+- MongoDB → mongo:latest
+- Cassandra → cassandra:latest
+- Neo4j → neo4j:latest
+
+Se descargan automáticamente si no existen.
+
+Para verificar:
+docker images
+docker ps -a
+
+------------------------------------------------------------
+EJECUCIÓN DEL PROYECTO
+------------------------------------------------------------
+1. Abrir Git Bash.
+2. Navegar al directorio root del proyecto.
+
+3. Ejecutar el script:
+bash start.sh
+
+El script realiza:
+- docker start mongodb-tp-bbdd cassandra-tp-bbdd neo4j-tp-bbdd
+- sleep 120
+- mvn clean package -DskipTests -q
+- java -jar target/tp-bbdd-2-app-1.0.0.jar
+
+------------------------------------------------------------
+ESTRUCTURA DEL PROYECTO
+------------------------------------------------------------
+tp-bbdd-2-app/
+  src/
+    main/java/...        Código Java
+    main/resources/       Configuraciones
+    test/                 Tests
+  target/
+    tp-bbdd-2-app-1.0.0.jar
+  start.sh                Script de automatización
+  pom.xml                 Configuración Maven
+  README.md
+
+------------------------------------------------------------
+DESCRIPCIÓN DE LAS BASES DE DATOS
+------------------------------------------------------------
+MongoDB:
+  - Base de datos documental
+  - Flexible y orientada a JSON
+
+Cassandra:
+  - Base distribuida orientada a columnas
+  - Excelente en escrituras de alta disponibilidad
+
+Neo4j:
+  - Base orientada a grafos
+  - Excelente para relaciones complejas
+
+------------------------------------------------------------
+COMPROBACIÓN DE SERVICIOS EN DOCKER
+------------------------------------------------------------
+docker ps
+Debe mostrar:
+- mongodb-tp-bbdd
+- cassandra-tp-bbdd
+- neo4j-tp-bbdd
+
+------------------------------------------------------------
+PROBLEMAS COMUNES Y SOLUCIONES
+------------------------------------------------------------
+1. El script no ejecuta correctamente
+   → Debe ejecutarse con Git Bash, no PowerShell ni WSL.
+
+2. Bash dice "java: command not found"
+   → Java debe configurarse también dentro de ~/.bashrc
+
+3. Docker no inicia contenedores
+   → Abrir Docker Desktop antes de ejecutar el script.
+
+
+
